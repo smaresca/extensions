@@ -181,7 +181,7 @@ end
 -- All Lua and hunt.* functions are cross-platform.
 host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"
-hunt.verbose("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
+hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
 
 if not hunt.env.is_windows() then
     hunt.warn("Not a compatible operating system for this extension [" .. host_info:os() .. "]")
@@ -350,14 +350,13 @@ script = script..[==[
     $RDP_RemoteConnectionManager | export-csv $temp\RDP_RemoteConnectionManager.csv -NoTypeInformation -Force
     $RDP_LocalSessionManager | export-csv $temp\RDP_LocalSessionManager.csv -NoTypeInformation -Force
     $RDP_Processes | export-csv $temp\RDP_Processes.csv -NoTypeInformation -Force
+    return $true
 ]==]
 
 
 ret, out = powershell.run_script(script)
-if ret then 
-    hunt.log(out)
-else
-    hunt.error(out)
+if not ret then 
+    hunt.error("Error running script: "..out)
     return
 end
 
