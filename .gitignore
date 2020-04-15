@@ -1,2 +1,5 @@
 
 official/draft/test.lua
+*.code-workspace
+official/collection/test.lua
+official/collection/test.ps1
