@@ -17,12 +17,17 @@ searchpaths = {
 }
 
 --Search Options:
+startdate = '05-01-2020'
 recurse_depth = 3
 
-filename_regex = {
-    [[^[0-9,A-Z,a-z]{1,6}-.*Readme.txt$]],
+filename_regex_suspicious = {
     [[^.*\.txt$]]
 }
+
+filename_regex_bad = {
+    [[^[0-9,A-Z,a-z]{4,6}-Readme\.txt$]],
+}
+
 
 --[[ SECTION 2: Functions --]]
 
@@ -139,6 +144,53 @@ function userfolders()
     return paths
 end
 
+
+function parse_csv(path, sep)
+    --[[
+        Parses a CSV on disk into a lua list.
+        Input:  [string]path -- Path to csv on disk
+                [string]sep -- CSV seperator to use. defaults to ','
+        Output: [list]
+    ]] 
+    tonum = true
+    sep = sep or ','
+    local csvFile = {}
+    local file,msg = io.open(path, "r")
+    if not file then
+        hunt.error("CSV Parser failed: ".. msg)
+        return nil
+    end
+    local header = {}
+    for line in file:lines() do
+        local n = 1
+        local fields = {}
+        if not line:match("^#TYPE") then 
+            for str in string.gmatch(line, "([^"..sep.."]+)") do
+                s = str:gsub('"(.+)"', "%1")
+                if not s then 
+                    hunt.debug(line)
+                    hunt.debug('column: '..v)
+                end
+                if #header == 0 then
+                    fields[n] = s
+                else
+                    v = header[n]
+                    fields[v] = tonumber(s) or s
+                end
+                n = n + 1
+            end
+            if #header == 0 then
+                header = fields
+            else
+                table.insert(csvFile, fields)
+            end
+        end
+    end
+    file:close()
+    return csvFile
+end
+
+
 --[[ SECTION 3: Collection --]]
 
 
@@ -147,18 +199,34 @@ host_info = hunt.env.host_info()
 hunt.verbose("Starting Extention. Hostname: " .. host_info:hostname() .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
 hunt.status.good()
 
-
+tmp = "C:\\windows\\temp\\ic\\out.csv"
 for _, path in pairs(searchpaths) do 
-    for _,m in pairs(filename_regex) do 
-        cmd = "Get-ChildItem -Path '"..path.."' -Recurse -Depth "..recurse_depth.." -Filter *.txt | where-object { $_.Name -match '"..m.."' } | Select FullName -ExpandProperty FullName"
+    for _,m in pairs(filename_regex_suspicious) do 
+        cmd = "Get-ChildItem -Path '"..path.."' -Recurse -Depth "..recurse_depth.." -Filter *.txt | where-object { $_.CreationTimeUtc -gt [DateTime]'"..startdate.."' -AND $_.Name -match '"..m.."' } | select FullName, CreationTimeUtc, LastWriteTimeUtc | Sort-Object creationTimeUtc -Descending| Export-CSV "..tmp.." -Force -Delimiter ';' -NoTypeInformation; return $true"
+        print(cmd)
         success, results = powershell.run_script(cmd)
-        if success then 
-            for line in results:gmatch"[^\n]+" do
+        if success and path_exists(tmp) then 
+            csv = parse_csv("C:\\windows\\temp\\ic\\out.csv", ";")
+            for _,file in pairs(csv) do
                 hunt.status.suspicious() -- Set Threat to Suspicious on finding
-                hunt.log(line) -- Send to Infocyte Extension Output
+                hunt.log("Suspicious ["..file['CreationTimeUtc'].."]: "..file['FullName']) -- Send to Infocyte Extension Output
+            end
+        end
+    end
+    os.remove(tmp)
+    for _,m in pairs(filename_regex_bad) do 
+        cmd = "Get-ChildItem -Path '"..path.."' -Recurse -Depth "..recurse_depth.." -Filter *.txt | where-object { $_.CreationTimeUtc -gt [DateTime]'"..startdate.."' -AND $_.Name -match '"..m.."' } | select FullName, CreationTimeUtc, LastWriteTimeUtc | Sort-Object creationTimeUtc -Descending | Export-CSV "..tmp.." -Force -Delimiter ';' -NoTypeInformation; return $true"
+        print(cmd)
+        success, results = powershell.run_script(cmd)
+        if success and path_exists(tmp) then 
+            csv = parse_csv("C:\\windows\\temp\\ic\\out.csv", ";")
+            for _,file in pairs(csv) do
+                hunt.status.suspicious() -- Set Threat to Suspicious on finding
+                hunt.log("Suspicious ["..file['CreationTimeUtc'].."]: "..file['FullName']) -- Send to Infocyte Extension Output
             end
         end
     end
 end
+os.remove(tmp)
 
 hunt.log("Result: Extension successfully executed")
