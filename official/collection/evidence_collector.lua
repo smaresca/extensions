@@ -15,8 +15,8 @@
 --[[ SECTION 1: Inputs --]]
 
 -- S3 Bucket (mandatory)
-s3_user = nil
-s3_pass = nil
+s3_keyid = nil
+s3_secret = nil
 s3_region = 'us-east-2' -- 'us-east-2'
 s3_bucket = 'test-extensions' -- 'test-extensions'
 s3path_modifier = "evidence" -- /filename will be appended
@@ -81,81 +81,12 @@ function path_exists(path)
    return ok, err
 end
 
--- Infocyte Powershell Functions
-powershell = {}
-function powershell.run_command(command)
-    --[[
-        Input:  [String] Small Powershell Command
-        Output: [Bool] Success
-                [String] Output
-    ]]
-    if not hunt.env.has_powershell() then
-        throw "Powershell not found."
-    end
-
-    if not command or (type(command) ~= "string") then 
-        throw "Required input [String]command not provided."
-    end
-
-    print("[PS] Initiatializing Powershell to run Command: "..command)
-    cmd = ('powershell.exe -nologo -nop -command "& {'..command..'}"')
-    pipe = io.popen(cmd, "r")
-    output = pipe:read("*a") -- string output
-    ret = pipe:close() -- success bool
-    return ret, output
-end
-
-function powershell.run_script(psscript)
-    --[[
-        Input:  [String] Powershell script. Ideally wrapped between [==[ ]==] to avoid possible escape characters.
-        Output: [Bool] Success
-                [String] Output
-    ]]
-    debug = debug or true
-    if not hunt.env.has_powershell() then
-        throw "Powershell not found."
-    end
-
-    if not psscript or (type(psscript) ~= "string") then 
-        throw "Required input [String]script not provided."
-    end
-
-    print("[PS] Initiatializing Powershell to run Script")
-    local tempfile = os.getenv("systemroot").."\\temp\\ic"..os.tmpname().."script.ps1"
-    local f = io.open(tempfile, 'w')
-    script = "# Ran via Infocyte Powershell Extension\n"..psscript
-    f:write(script) -- Write script to file
-    f:close()
-
-    -- Feed script (filter out empty lines) to Invoke-Expression to execute
-    -- This method bypasses translation issues with popen's cmd -> powershell -> cmd -> lua shinanigans
-    local cmd = 'powershell.exe -nologo -nop -command "gc '..tempfile..' | Out-String | iex'
-    print("[PS] Executing: "..cmd)
-    local pipe = io.popen(cmd, "r")
-    local output = pipe:read("*a") -- string output
-    if debug then 
-        for line in string.gmatch(output,'[^\n]+') do
-            if line ~= '' then print("[PS] "..line) end
-        end
-    end
-    local ret = pipe:close() -- success bool
-    os.remove(tempfile)
-    if ret and string.match( output, 'FullyQualifiedErrorId' ) then
-        ret = false
-    end
-    return ret, output
-end
-
 -- PowerForensics (optional)
-function powershell.install_powerforensics()
+function install_powerforensics()
     --[[
         Checks for NuGet and installs Powerforensics
         Output: [bool] Success
     ]]
-    if not powershell then 
-        hunt.error("Infocyte's powershell lua functions are not available. Add Infocyte's powershell.* functions.")
-        throw "Error"
-    end
     script = [==[
         # Download/Install PowerForensics
         $n = Get-PackageProvider -name NuGet
@@ -201,7 +132,7 @@ if hunt.env.is_windows() then
     os.execute("mkdir "..os.getenv("temp").."\\ic")
 
     if (use_powerforensics or MFT) and hunt.env.has_powershell() then
-        powershell.install_powerforensics()
+        install_powerforensics()
     end
 
     -- Record LocalTimeZone
@@ -345,7 +276,7 @@ elseif instance:match("infocyte") then
     -- get instancename
     instancename = instance:match("(.+).infocyte.com")
 end
-s3 = hunt.recovery.s3(s3_user, s3_pass, s3_region, s3_bucket)
+s3 = hunt.recovery.s3(s3_keyid, s3_secret, s3_region, s3_bucket)
 s3path_preamble = instancename..'/'..os.date("%Y%m%d")..'/'..host_info:hostname().."/"..s3path_modifier
 
 for name,path in pairs(paths) do
