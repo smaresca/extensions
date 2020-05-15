@@ -13,8 +13,8 @@
 --[[ SECTION 1: Inputs --]]
 
 -- S3 Bucket (mandatory)
-s3_user = nil
-s3_pass = nil
+s3_keyid = nil
+s3_secret = nil
 s3_region = 'us-east-2' -- 'us-east-2'
 s3_bucket = 'test-extensions' -- 'test-extensions'
 s3path_modifier = "evidence" -- /filename will be appended 
@@ -61,74 +61,9 @@ function path_exists(path)
 end
 
 -- Infocyte Powershell Functions --
-powershell = {}
-function powershell.run_cmd(command)
-    --[[
-        Input:  [String] Small Powershell Command
-        Output: [Bool] Success
-                [String] Output
-    ]]
-    if not hunt.env.has_powershell() then
-        hunt.error("Powershell not found.")
-        throw "Powershell not found."
-    end
-
-    if not command or (type(command) ~= "string") then 
-        hunt.error("Required input [String]command not provided.")
-        throw "Required input [String]command not provided."
-    end
-
-    print("Initiatializing Powershell to run Command: "..command)
-    cmd = ('powershell.exe -nologo -nop -command "& {'..command..'}"')
-    pipe = io.popen(cmd, "r")
-    output = pipe:read("*a") -- string output
-    ret = pipe:close() -- success bool
-    return ret, output
-end
-
-function powershell.run_script(psscript)
-    --[[
-        Input:  [String] Powershell script. Ideally wrapped between [==[ ]==] to avoid possible escape characters.
-        Output: [Bool] Success
-                [String] Output
-    ]]
-    if not hunt.env.has_powershell() then
-        hunt.error("Powershell not found.")
-        throw "Powershell not found."
-    end
-
-    if not psscript or (type(psscript) ~= "string") then 
-        hunt.error("Required input [String]script not provided.")
-        throw "Required input [String]script not provided."
-    end
-
-    print("Initiatializing Powershell to run Script")
-    tempfile = os.getenv("systemroot").."\\temp\\icpowershell.log"
-
-    -- Pipeline is write-only so we'll use transcript to get output
-    script = '$Temp = [System.Environment]::GetEnvironmentVariable("TEMP","Machine")\n'
-    script = script..'Start-Transcript -Path "'..tempfile..'" | Out-Null\n'
-    script = script..psscript
-    script = script..'\nStop-Transcript\n'
-
-    pipe = io.popen("powershell.exe -noexit -nologo -nop -command -", "w")
-    pipe:write(script)
-    ret = pipe:close() -- success bool
-
-    -- Get output
-    file, err = io.open(tempfile, "r")
-    if file then
-        output = file:read("*all") -- String Output
-        file:close()
-        os.remove(tempfile)
-    else 
-        hunt.error("Powershell script failed to run: "..err)
-    end
-    return ret, output
-end
 
 -- PowerForensics (optional)
-function powershell.install_powerforensics()
+function install_powerforensics()
     --[[
         Checks for NuGet and installs Powerforensics
         Output: [bool] Success
@@ -177,7 +112,7 @@ lf = hunt.fs.ls(logfolder)
 if #lf == 0 then os.execute("mkdir "..logfolder) end
 
 if use_powerforensics and hunt.env.has_powershell() then
-    powershell.install_powerforensics()
+    install_powerforensics()
 end
 
 
@@ -188,7 +123,7 @@ elseif instance:match("infocyte") then
     -- get instancename
     instancename = instance:match("(.+).infocyte.com")
 end
-s3 = hunt.recovery.s3(s3_user, s3_pass, s3_region, s3_bucket)
+s3 = hunt.recovery.s3(s3_keyid, s3_secret, s3_region, s3_bucket)
 s3path_preamble = instancename..'/'..os.date("%Y%m%d")..'/'..host_info:hostname().."/"..s3path_modifier
 
 
