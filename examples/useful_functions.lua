@@ -1,89 +1,14 @@
 --[[
     Useful functions you may want to include in your scripts:
 
-    1. Powershell Library [powershell.*] -- Powershell functions to make it easier to execute PS commands and scripts.
-    2. Filesystem -- functions to simplify common filesystem tasks
-    3. Registry -- functions to simplify common windows registry lookups and tasks
-
 ]]
 
--- Infocyte Powershell Functions --
-powershell = {}
-function powershell.run_command(command)
-    --[[
-        Input:  [String] Small Powershell Command
-        Output: [Bool] Success
-                [String] Output
-    ]]
-    if not hunt.env.has_powershell() then
-        throw "Powershell not found."
-    end
-
-    if not command or (type(command) ~= "string") then 
-        throw "Required input [String]command not provided."
-    end
-
-    print("[PS] Initiatializing Powershell to run Command: "..command)
-    cmd = ('powershell.exe -nologo -nop -command "& {'..command..'}"')
-    pipe = io.popen(cmd, "r")
-    output = pipe:read("*a") -- string output
-    ret = pipe:close() -- success bool
-    return ret, output
-end
-
-function powershell.run_script(psscript)
-    --[[
-        Input:  [String] Powershell script. Ideally wrapped between [==[ ]==] to avoid possible escape characters.
-        Output: [Bool] Success
-                [String] Output
-    ]]
-    debug = debug or true
-    if not hunt.env.has_powershell() then
-        throw "Powershell not found."
-    end
-
-    if not psscript or (type(psscript) ~= "string") then 
-        throw "Required input [String]script not provided."
-    end
-
-    os.execute("mkdir "..os.getenv("systemroot").."\\temp\\ic")
-    print("Initiatializing Powershell to run Script")
-
-    local tempfile = os.getenv("systemroot").."\\temp\\ic"..os.tmpname().."script.ps1"
-    local f = io.open(tempfile, 'w')
-    script = "# Ran via Infocyte Powershell Extension\n"..psscript
-    f:write(script) -- Write script to file
-    f:close()
-
-    -- Feed script to Invoke-Expression to execute
-    -- This method bypasses translation issues with popen's cmd -> powershell -> cmd -> lua shinanigans
-    local cmd = 'powershell.exe -nologo -nop -command "gc '..tempfile..' | Out-String | iex'
-    print("Executing: "..cmd)
-    local pipe = io.popen(cmd, "r")
-    local output = pipe:read("*a") -- string output
-    if debug then 
-        for line in string.gmatch(output,'[^\n]+') do
-            if line ~= '' then print("[PS]: "..line) end
-        end
-    end
-    local ret = pipe:close() -- success bool
-    os.remove(tempfile)
-    if ret and string.match( output, 'FullyQualifiedErrorId' ) then
-        ret = false
-    end
-    return ret, output
-end
-
 -- PowerForensics (optional)
-function powershell.install_powerforensics()
+function install_powerforensics()
     --[[
         Checks for NuGet and installs Powerforensics
         Output: [bool] Success
     ]]
-    if not powershell then 
-        hunt.error("Infocyte's powershell lua functions are not available. Add Infocyte's powershell.* functions.")
-        throw "Error"
-    end
     script = [==[
         # Download/Install PowerForensics
         $n = Get-PackageProvider -name NuGet
@@ -99,16 +24,17 @@ function powershell.install_powerforensics()
             Write-Host "Powerforensics Already Installed. Continuing."
         }
     ]==]
-    ret, output = powershell.run_script(script)
-    if ret then 
-        hunt.debug("[install_powerforensics] Succeeded:\n"..output)
+    out, err = hunt.env.run_powershell(script)
+    if out then 
+        hunt.log("[install_powerforensics] Succeeded:\n"..out)
+        return true
     else 
-        hunt.error("[install_powerforensics] Failed:\n"..output)
+        hunt.error("[install_powerforensics] Failed:\n"..err)
+        return false
     end
-    return ret
 end
 
-function powershell.list_to_pslist(list)
+function list_to_pslist(list)
     --[[
         Converts a lua list (table) into a stringified powershell array that can be passed to Powershell
         Input:  [list]list -- Any list with (_, val) format
@@ -123,7 +49,7 @@ function powershell.list_to_pslist(list)
     return psarray
 end
 
--- Python Functions --
+-- Python functions --
 py = {}
 function py.run_command(command)
     --[[
@@ -132,7 +58,7 @@ function py.run_command(command)
         Output: [bool] Success    
                 [string] Results
     ]]
-    os.execute("python -q -u -c \"" .. cmd.. "\"" )
+    os.execute("python -q -u -c \"" .. command.. "\"" )
 end
 function py.run_script(pyscript)
     --[[
@@ -144,7 +70,7 @@ function py.run_script(pyscript)
     
     tempfile = os.getenv("tmp").."/icpython_"..os.tmpname()..".log"
 
-    io.popen("python -q -c - > "..tempfile, "w")
+    pipe = io.popen("python -q -c - > "..tempfile, "w")
     pipe:write(pyscript)
     ret = pipe:close() -- success bool
 
@@ -161,7 +87,7 @@ function py.run_script(pyscript)
 end
 
 
--- FileSystem Functions --
+-- FileSystem functions --
 function path_exists(path)
     --[[
         Check if a file or directory exists in this path. 
@@ -169,7 +95,7 @@ function path_exists(path)
         Output: [bool] Exists
                 [string] Error message -- only if failed
     ]] 
-   local ok, err = os.rename(path, path)
+   ok, err = os.rename(path, path)
    if not ok then
       if err == 13 then
          -- Permission denied, but it exists
@@ -189,12 +115,12 @@ function is_executable(path)
         "MZ",
         ".ELF"
     }
-    local f,msg = io.open(path, "rb")
+    f,msg = io.open(path, "rb")
     if not f then
         hunt.error(msg)
         return nil
     end
-    local bytes = f:read(4)
+    bytes = f:read(4)
     if bytes then
         -- print(bytes)
         for _,n in pairs(magicnumbers) do
@@ -225,8 +151,8 @@ function userfolders()
         Returns a list of userfolders to iterate through
         Output: [list]ret -- List of userfolders (_, path)
     ]]
-    local paths = {}
-    local u = {}
+    paths = {}
+    u = {}
     for _, userfolder in pairs(hunt.fs.ls("C:\\Users", {"dirs"})) do
         if (userfolder:full()):match("Users") then
             if not u[userfolder:full()] then
@@ -247,7 +173,7 @@ function reg.usersids()
         Returns all the userSIDs in the registry to aid in iterating through registry user profiles
         Output: [list] Usersid strings -- A list of usersids in format: (_, '\\registry\user\<usersid>')
     ]] 
-    local output = {}
+    output = {}
     -- Iterate through each user profile's and list their keyboards
     user_sids = hunt.registry.list_keys("\\Registry\\User")
     for _,user_sid in pairs(user_sids) do
@@ -264,7 +190,7 @@ function reg.search(path, indent)
         Output: [list]  -- A list of keys that the string was found in. format = (key, string)
     ]] 
     indent = indent or 0
-    local output = {}
+    output = {}
     values = hunt.registry.list_values(path)
     print(string.rep("=", indent) .. path)
     for name,value in pairs(values) do
@@ -274,7 +200,7 @@ function reg.search(path, indent)
     subkeys = hunt.registry.list_keys(path)
     if subkeys then
         for _,subkey2 in pairs(subkeys) do
-            r = registry_search(path .. "\\" .. subkey2, indent + 2)
+            r = reg.search(path .. "\\" .. subkey2, indent + 2)
             for _,val in pairs(r) do
                 table.insert(output, val)
             end
@@ -293,8 +219,8 @@ function print_table(tbl, indent)
                 [int] (do not use manually) indent spaces for recursive printing of sub lists
         Output: [string]  -- stringified version of the table
     ]] 
-    if not indent then indent = 0 end
-    local toprint = ""
+    indent = indent or 0
+    toprint = ""
     if not tbl then return toprint end
     if type(tbl) ~= "table" then 
         print("print_table error: Not a table. "..tostring(tbl))
@@ -314,7 +240,7 @@ function print_table(tbl, indent)
 end
 
 
--- Infocyte Agent Functions --
+-- Infocyte Agent functions --
 function is_agent_installed()
     --[[
     Determines if infocyte agent is installed
@@ -392,18 +318,19 @@ function ftp.upload(path, address, username, password)
                 $Run.Dispose()
             }
         ]==]
-        ret, output = powershell.run_script(script)
-        if not ret then 
-            print("Failure: "..output)
+        out, err = hunt.env.run_powershell(script)
+        if not out then 
+            hunt.error("Failure: "..err)
+            return false
         end
-        return ret
+        return true
     end
 end
 
 function ftp.download(path, address, username, password)
     --[[
         Download a file to FTP address
-        Input:  [string]path -- Local save path (i.e. "C:\\windows\\temp\\asdf.zip")
+        Input:  [string]path -- save path (i.e. "C:\\windows\\temp\\asdf.zip")
                 [string]address -- FTP Address of file (i.e. "ftp://ftp.infocyte.com/folder/asdf.zip")
                 [string]username -- ftp user
                 [string]password -- ftp pass
@@ -435,7 +362,7 @@ function ftp.download(path, address, username, password)
                 Return "Failure: Could not download from ftp. $($_.Message)"
             }
            
-            # Create the target file on the local system and the download buffer
+            # Create the target file on the system and the download buffer
             $LocalFileFile = New-Object IO.FileStream ($Path,[IO.FileMode]::Create)
             [byte[]]$ReadBuffer = New-Object byte[] 1024
             # Loop through the download
@@ -444,13 +371,14 @@ function ftp.download(path, address, username, password)
                 $LocalFileFile.Write($ReadBuffer,0,$ReadLength)
             }
             while ($ReadLength -ne 0)
-            return true              
+            return true
         ]==]
-        ret, output = powershell.run_script(script)
-        if not ret then 
-            print("Failure: "..output)
+        out, err = hunt.env.run_powershell(script)
+        if not out then 
+            hunt.error("Failure: "..err)
+            return false
         end
-        return ret
+        return true
     end
 end
 
@@ -464,18 +392,17 @@ function parse_csv(path, sep)
                 [string]sep -- CSV seperator to use. defaults to ','
         Output: [list]
     ]] 
-    tonum = true
     sep = sep or ','
-    local csvFile = {}
-    local file,msg = io.open(path, "r")
+    csvFile = {}
+    file,msg = io.open(path, "r")
     if not file then
         hunt.error("CSV Parser failed: ".. msg)
         return nil
     end
-    local header = {}
+    header = {}
     for line in file:lines() do
-        local n = 1
-        local fields = {}
+        n = 1
+        fields = {}
         if not line:match("^#TYPE") then 
             for str in string.gmatch(line, "([^"..sep.."]+)") do
                 s = str:gsub('"(.+)"', "%1")
@@ -502,44 +429,4 @@ function parse_csv(path, sep)
     return csvFile
 end
 
-
---[[ TESTS ]]
--- Test lua functions
-if not path_exists("C:\\windows\\temp\\test.csv") then
-
-end
-
-print("======= Testing useful lua functions ==========")
-print(powershell.run_command('Get-Process'))
-script = [==[
-$a = Get-Process | where { $_.name -eq 'svchost' }
-$a | export-csv "C:\windows\temp\test.csv"
-]==]
-print(powershell.run_script(script))
-
-print('filename: '..get_filename("C:\\windows\\temp\\test.csv"))
-print('file extension: '..get_fileextension("C:\\windows\\temp\\test.csv"))
-file = io.open("C:\\windows\\temp\\test.csv", "r")
-print(file:read("a*"))
-file:close()
-
-csv = parse_csv("C:\\windows\\temp\\test.csv")
-for _, p in pairs(csv) do 
-    print_table(p)
-    break
-end
-
-for k, p in pairs(userfolders()) do 
-    print("Userfolder["..k.."]: "..tostring(p))
-end
-
-if (path_exists("C:\\windows\\system32\\calc.exe")) then
-    print("Is calc.exe executable: "..is_executable("C:\\windows\\system32\\calc.exe"))
-end
-
-for k, val in pairs(reg.get_usersids()) do
-    print("UserSID["..k.."]:"..val)
-end
-
---services = reg.search("\\Registry\\Machine\\SYSTEM\\CurrentControlSet\\services", "LanmanServer")
 

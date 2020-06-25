@@ -1428,8 +1428,8 @@ end
 --[[ SECTION 3: Collection --]]
 
 host_info = hunt.env.host_info()
-osversion = host_info:os()
-hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. host_info:domain() .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
+domain = host_info:domain() or "N/A"
+hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
 
 
 -- Load Yara rules
@@ -1467,9 +1467,9 @@ end
 -- Add additional paths
 for i, path in pairs(additionalpaths) do
     files = hunt.fs.ls(path, add_opts)
-    for _,path in pairs(files) do
-        if is_executable(path:path()) then
-            paths[path:path()] = true
+    for _,path2 in pairs(files) do
+        if is_executable(path2:path()) then
+            paths[path2:path()] = true
         end
     end
 end
@@ -1479,29 +1479,32 @@ matchedpaths = {}
 -- Scan all paths with Yara signatures
 n=1
 for path, i in pairs(paths) do
-    print('['..n..'] Scanning ' .. path)
+    hunt.debug('['..n..'] Scanning ' .. path)
     n=n+1
+    hunt.verbose("Scanning with bad_rules")
     for _, signature in pairs(yara_bad:scan(path)) do
         if not hash then
             hash = hunt.hash.sha1(path)
         end
-        hunt.log('[BAD] Yara matched [' .. signature .. '] in file: ' .. path .. " <"..hash..">")
+        hunt.log('Matched yara rule [BAD]' .. signature .. ' on: ' .. path .. " <"..hash..">")
         bad = true
 		matchedpaths[path] = true
     end
+    hunt.verbose("Scanning with suspicious_rules")
     for _, signature in pairs(yara_suspicious:scan(path)) do
         if not hash then
             hash = hunt.hash.sha1(path)
         end
-        hunt.log('[SUSPICIOUS] Yara matched [' .. signature .. '] in file: ' .. path .. " <"..hash..">")
+        hunt.log('Matched yara rule [SUSPICIOUS]' .. signature .. ' on: ' .. path .. " <"..hash..">")
         suspicious = true
 		matchedpaths[path] = true
     end
+    hunt.verbose("Scanning with info_rules")
     for _, signature in pairs(yara_info:scan(path)) do
         if not hash then
             hash = hunt.hash.sha1(path)
         end
-        hunt.log('[INFO] Yara matched [' .. signature .. '] in file: ' .. path .. " <"..hash..">")
+        hunt.log('Matched yara rule [INFO]' .. signature .. ' on: ' .. path .. " <"..hash..">")
         lowrisk = true
     end
     hash = nil
@@ -1520,15 +1523,19 @@ end
 
 -- Set threat status
 if bad then
+    result = "Bad"
     hunt.status.bad()
 elseif suspicious then
+    result = "Suspicious"
     hunt.status.suspicious()
 elseif lowrisk then
-    hunt.status.lowrisk()
+    result = "Low Risk"
+    hunt.status.low_risk()
 else
+    result = "Good"
     hunt.status.good()
 end
 
-hunt.log("Yara scan completed. Added "..n.." paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
+hunt.log("Yara scan completed. Result="..result.." Added "..n.." paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
 
 

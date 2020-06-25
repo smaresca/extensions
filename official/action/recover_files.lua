@@ -85,13 +85,14 @@ function install_powerforensics()
             Install-Module -name PowerForensics -Scope CurrentUser -Force
         }
     ]==]
-    ret, output = powershell.run_script(script)
-    if ret then 
-        hunt.debug("Powershell Succeeded:\n"..output)
+    out, err = hunt.env.run_powershell(script)
+    if out then 
+        hunt.debug("Powershell Succeeded:\n"..out)
+        return true
     else 
-        hunt.error("Powershell Failed:\n"..output)
+        hunt.error("Powershell Failed:\n"..err)
+        return false
     end
-    return ret
 end
 
 --[[ SECTION 3: Collection --]]
@@ -103,8 +104,8 @@ if not s3_region or not s3_bucket then
 end
 
 host_info = hunt.env.host_info()
-osversion = host_info:os()
-hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. host_info:domain() .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
+domain = host_info:domain() or "N/A"
+hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
 
 -- Make tempdir
 logfolder = os.getenv("temp").."\\ic"

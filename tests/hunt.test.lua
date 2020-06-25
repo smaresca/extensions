@@ -171,28 +171,27 @@ end
 -- Test Base64 and Hashing functions
 hash, err = hunt.hash.sha1(path)
 if not hash then
-    print("err: "..err)
+    hunt.error("sha1 hashing error: "..err)
 end
 hunt.log("SHA1 file ("..path.."): " .. tostring(hash))
 hash, err = hunt.hash.sha1("err.exe")
 if not hash then
-    hunt.error("SHA1 wrong file. Error: "..err)
+    hunt.log("SHA1 wrong file. Error: "..err)
 end
 data = hunt.unbase64("dGVzdA==")
 t, err = hunt.hash.sha1_data(data)
-hunt.error(tostring(err))
 hunt.log("Sha1 data: " .. tostring(t))
 hunt.log('unbase64 ("test"): ' .. tostring(hunt.bytes_to_string(hunt.unbase64("dGVzdA=="))))
 
 -- Test Recovery Upload Options
 file = 'c:\\windows\\system32\\notepad.exe'
 temppath = os.getenv("TEMP") .. '\\test1234.zip'
-print(hunt.gzip(file, temppath))
+hunt.log(hunt.gzip(file, temppath))
 if path_exists(temppath) then hunt.log("Zip Succeeded") else hunt.log('Zip Failed') end
 
 s3 = hunt.recovery.s3(aws_id, aws_secret, s3_region, s3_bucket)
 hunt.log('Uploading ' .. temppath .. ' to S3 Bucket [' ..s3_region .. ':' .. s3_bucket .. ']' )
-print(s3:upload_file(temppath, 'snarf/evidence.bin'))
+hunt.log(s3:upload_file(temppath, 'snarf/evidence.bin'))
 
 -- Test Filesystem Functions
 opts = {
@@ -212,7 +211,7 @@ end
 hunt.status.good()
 hunt.status.bad()
 hunt.status.suspicious()
-hunt.status.lowrisk()
+--hunt.status.low_risk()
 
 
 
