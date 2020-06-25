@@ -20,12 +20,12 @@
 searchpaths = {
     'C:/Users/'
 }
-
-all_office_docs = false -- set to true to bypass string search
 strings = {
     'test',
     'Gerritz'
 }
+
+all_office_docs = false -- set to true to bypass string search
 --Options for all_office_docs:
 opts = {
     "files",
@@ -448,19 +448,15 @@ if all_office_docs then
                     for _, m in ipairs(magic_numbers) do 
                         paths:add(path)
                     end
-                else 
-                    ext = GetFileExtension(path:name())
-                    for _,e in ipairs(extensions) do
-                        if ext and ext:match(e.."$") then
-                            paths:add(path)
-                        end
-                    end
                 end
             else
                 hunt.error('File does not exist')
             end
+        else
+            print('File does not exist')
         end
     end
+    --end
     
     for _, path in pairs(paths) do
         hash = hunt.hash.sha1(path:full())

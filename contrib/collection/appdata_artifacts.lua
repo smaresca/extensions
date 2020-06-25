@@ -86,7 +86,8 @@ end
 -- Add paths
 paths = {}
 for _, userfolder in pairs(userfolders()) do
-    for _, path in pairs(hunt.fs.ls(userfolder:path().."\\appdata\\roaming", opts)) do
+    for _, path in pairs(hunt.fs.ls(userfolder.."\\appdata\\roaming", opts)) do
+        --print(path:path())
         if is_executable(path:path()) then
             paths[path:path()] = true
         end
@@ -96,10 +97,10 @@ end
 -- Create a new artifact
 n = 0
 for path,_ in pairs(paths) do
-    a = hunt.survey.artifact()
-    a:exe(path)
-    a:type("AppData Binary")
-    hunt.survey.add(a)
+    artifact = hunt.survey.artifact()
+    artifact:exe(path)
+    artifact:type("AppData Binary")
+    hunt.survey.add(artifact)
     n = n +1
 end
 

@@ -239,6 +239,7 @@ script = script..[==[
     $RDP_RemoteConnectionManager | export-csv $temp\RDP_RemoteConnectionManager.csv -NoTypeInformation -Force
     $RDP_LocalSessionManager | export-csv $temp\RDP_LocalSessionManager.csv -NoTypeInformation -Force
     $RDP_Processes | export-csv $temp\RDP_Processes.csv -NoTypeInformation -Force
+    return $true
 ]==]
 
 
