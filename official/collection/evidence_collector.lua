@@ -1,33 +1,104 @@
---[[
-    Infocyte Extension
-    Name: Evidence Collector
-    Type: Collection
-    Description: | Collects event logs, .dat files, etc. from system and forwards
-        them to your Recovery point. Loads Powerforensics to bypass file locks
-        Currently only works on Windows |
-    Author: Infocyte
-    Guid: e07252a1-4aea-47e4-80e8-c7ea8c558aed
-    Created: 20191018
-    Updated: 20200318 (Gerritz)
---]]
+--[=[
+filetype = "Infocyte Extension"
 
+[info]
+name = "Evidence Collector"
+type = "Collection"
+description = """Collects event logs, .dat files, etc. from system and forwards
+        them to your Recovery point. S3 Path Format: 
+        <s3bucket>:<instancename>/<date>/<hostname>/<s3path_modifier>/<filename>
+        Loads Powerforensics to bypass file locks. Currently only works on Windows"""
+author = "Infocyte"
+guid = "e07252a1-4aea-47e4-80e8-c7ea8c558aed"
+created = "2019-10-18"
+updated = "2020-07-27"
 
---[[ SECTION 1: Inputs --]]
+## GLOBALS ##
+# Global variables -> hunt.global('name')
 
--- S3 Bucket (mandatory)
-s3_keyid = nil
-s3_secret = nil
-s3_region = 'us-east-2' -- 'us-east-2'
-s3_bucket = 'test-extensions' -- 'test-extensions'
-s3path_modifier = "evidence" -- /filename will be appended
---S3 Path Format: <s3bucket>:<instancename>/<date>/<hostname>/<s3path_modifier>/<filename>
+[[globals]]
+name = "s3_keyid"
+description = "S3 Bucket key Id for uploading"
+type = "string"
 
+[[globals]]
+name = "s3_secret"
+description = "S3 Bucket key Secret for uploading"
+type = "secret"
 
--- Proxy (optional)
-proxy = nil -- "myuser:password@10.11.12.88:8888"
+[[globals]]
+name = "s3_region"
+description = "S3 Bucket key Id for uploading. Example: 'us-east-2'"
+type = "string"
+required = true
+
+[[globals]]
+name = "s3_bucket"
+description = "S3 Bucket name for uploading"
+type = "string"
+required = true
+
+[[globals]]
+name = "proxy"
+description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
+type = "string"
+required = false
+
+[[globals]]
+name = "debug"
+description = "Print debug information"
+type = "boolean"
+default = false
+required = false
+
+[[globals]]
+name = "disable_powershell"
+description = "Does not use powershell"
+type = "boolean"
+default = false
+required = false
+
+## ARGUMENTS ##
+# Runtime arguments -> hunt.arg('name')
+
+[[args]]
+
+]=]
+
+--[=[ SECTION 1: Inputs ]=]
+-- get_arg(arg, obj_type, default, is_global, is_required)
+function get_arg(arg, obj_type, default, is_global, is_required)
+    -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
+
+    obj_type = obj_type or "string"
+    if is_global then 
+        obj = hunt.global(arg)
+    else
+        obj = hunt.arg(arg)
+    end
+    if is_required and obj == nil then 
+       hunt.error("ERROR: Required argument '"..arg.."' was not provided")
+       error("ERROR: Required argument '"..arg.."' was not provided") 
+    end
+    if obj ~= nil and type(obj) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+    end
+    
+    if default ~= nil and type(default) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(default)..") for default to '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for default to '"..arg.."', expected "..obj_type)
+    end
+    --print(arg.."[global="..tostring(is_global or false).."]: ["..obj_type.."]"..tostring(obj).." Default="..tostring(default))
+    if obj ~= nil and obj ~= '' then
+        return obj
+    else
+        return default
+    end
+end
 
 -- Evidence Collections
-use_powerforensics = true
+use_powerforensics = not get_arg("disable_powershell", "boolean", false, true, false)
 MFT = false -- this is a big job
 SecurityEvents = true
 IEHistory = true
@@ -37,11 +108,15 @@ OutlookPSTandAttachments = true
 UserDat = true
 USBHistory = true
 
+debug = get_arg("debug", "boolean", false, true, false)
+proxy = get_arg("proxy", "string", nil, true, false)
+s3_keyid = get_arg("s3_keyid", "string", nil, true, false)
+s3_secret = get_arg("s3_secret", "string", nil, true, false)
+s3_region = get_arg("s3_region", "string", nil, true, true)
+s3_bucket = get_arg("s3_bucket", "string", nil, true, true)
+s3path_modifier = "evidence"
 
-debug = false
-
-
---[[ SECTION 2: Functions --]]
+--[=[ SECTION 2: Functions ]=]
 
 function reg_usersids()
     local output = {}
@@ -83,11 +158,11 @@ end
 
 -- PowerForensics (optional)
 function install_powerforensics()
-    --[[
+    --[=[
         Checks for NuGet and installs Powerforensics
         Output: [bool] Success
-    ]]
-    script = [==[
+    ]=]
+    script = [=[
         # Download/Install PowerForensics
         $n = Get-PackageProvider -name NuGet
         if ($n.version.major -lt 2) {
@@ -101,7 +176,7 @@ function install_powerforensics()
         } else {
             Write-Host "Powerforensics Already Installed. Continuing."
         }
-    ]==]
+    ]=]
     out, err = hunt.env.run_powershell(script)
     if out then 
         hunt.debug("[install_powerforensics] Succeeded:\n"..out)
@@ -113,13 +188,7 @@ function install_powerforensics()
 end
 
 
---[[ SECTION 3: Collection --]]
-
--- Check required inputs
-if not s3_region or not s3_bucket then
-    hunt.error("s3_region and s3_bucket not set")
-    return
-end
+--[=[ SECTION 3: Collection ]=]
 
 host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"
@@ -327,7 +396,7 @@ os.execute("RMDIR /S/Q "..os.getenv("temp").."\\ic")
 hunt.status.good()
 
 
---[[
+--[=[
 Win2k3/XP: \%SystemRoot%\System32\Config\*.evt
 Win2k8/Vista+: \%SystemRoot%\System32\winevt\Logs\*.evtx
 Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\services\eventlog\Security | select File
@@ -339,4 +408,4 @@ Get-ItemProperty HKLM:\SYSTEM\CurrentControlSet\services\eventlog\System | selec
     7045 [System] - Service Creation
     4688 [Security] - A new process has been created (Win2012R2+ has CLI)
     4014 [Powershell] - Script Block Logging
---]]
+]=]

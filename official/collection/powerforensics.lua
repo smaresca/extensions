@@ -1,37 +1,87 @@
---[[
-    Infocyte Extension
-    Name: PowerForensics MFT
-    Type: Collection
-    Description: | Deploy PowerForensics and gathers forensic data to Recovery
+--[=[
+filetype = "Infocyte Extension"
+
+[info]
+name = "PowerForensics MFT"
+type = "Collection"
+description = """Deploy PowerForensics and gathers forensic data to Recovery
         Location. This extension requires definition of a Recovery Location 
-        (S3, SMB Share, or FTP) |
-    Author: Infocyte
-    Guid: 0989cd2f-a781-4cea-8f43-fcc3092144a1
-    Created: 20190919
-    Updated: 20200318 (Gerritz)
---]]
+        (S3)"""
+author = "Infocyte"
+guid = "0989cd2f-a781-4cea-8f43-fcc3092144a1"
+created = "2019-10-18"
+updated = "2020-07-20"
+
+## GLOBALS ##
+# Global variables -> hunt.global('name')
 
 
---[[ SECTION 1: Inputs --]]
+[[globals]]
+name = "s3_keyid"
+description = "S3 Bucket key Id for uploading"
+type = "string"
 
--- Upload Options. S3 Bucket (Mandatory)
-s3_keyid = nil -- Optional for authenticated uploads
-s3_secret = nil -- Optional for authenticated uploads
-s3_region = 'us-east-2' -- US East (Ohio)
-s3_bucket = 'test-extensions'
+[[globals]]
+name = "s3_secret"
+description = "S3 Bucket key Secret for uploading"
+type = "secret"
 
---S3 Path Format: <s3bucket>:<instancename>/<date>/<hostname>/<s3path_modifier>/<filename>
+[[globals]]
+name = "s3_region"
+description = "S3 Bucket key Id for uploading. Example: 'us-east-2'"
+type = "string"
+required = true
+
+[[globals]]
+name = "s3_bucket"
+description = "S3 Bucket name for uploading"
+type = "string"
+required = true
+
+[[globals]]
+name = "proxy"
+description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
+type = "string"
+required = false
+
+[[globals]]
+name = "debug"
+description = "Print debug information"
+type = "boolean"
+default = false
+required = false
+
+
+## ARGUMENTS ##
+# Runtime arguments -> hunt.arg('name')
+
+[[args]]
+
+]=]
+
+--[=[ SECTION 1: Inputs ]=]
+
+debug = get_arg("debug", "boolean", false, true, false)
+proxy = get_arg("proxy", "string", nil, true, false)
+s3_keyid = get_arg("s3_keyid", "string", nil, true, false)
+s3_secret = get_arg("s3_secret", "string", nil, true, false)
+s3_region = get_arg("s3_region", "string", nil, true, true)
+s3_bucket = get_arg("s3_bucket", "string", nil, true, true)
 s3path_modifier = "evidence"
 
+if(get_arg("disable_powershell", "boolean", false, true, false)) then
+    hunt.error("disable_powershell global is set. Cannot run extension without powershell")
+    return
+end
 
---[[ SECTION 2: Functions --]]
+--[=[ SECTION 2: Functions ]=]
 
 -- PowerForensics (optional)
 function install_powerforensics()
-    --[[
+    --[=[
         Checks for NuGet and installs Powerforensics
         Output: [bool] Success
-    ]]
+    ]=]
 
     script = [==[
         # Download/Install PowerForensics
@@ -71,13 +121,8 @@ function path_exists(path)
    return ok, err
 end
 
---[[ SECTION 3: Collection --]]
 
--- Check required inputs
-if not s3_region or not s3_bucket then
-    hunt.error("s3_region and s3_bucket not set. Cannot upload MFT.")
-    return
-end
+--[=[ SECTION 3: Collection ]=]
 
 host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"

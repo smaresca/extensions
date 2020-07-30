@@ -1,16 +1,59 @@
---[[
-    Infocyte Extension
-    Name: AppData Artifact Triage
-    Type: Collection
-    Description: | Adds all executable binaries in user appdata folder
-        (with recursion depth of 1) to artifacts for analysis. |
-    Author: Anonymous
-    Guid: 4d5ce2fb-df0f-4186-8116-4957cd405ec8
-    Created: 20191121
-    Updated: 20191121 (Gerritz)
---]]
+--[=[
+filetype = "Infocyte Extension"
 
---[[ SECTION 1: Inputs --]]
+[info]
+name = "AppData Artifact Triage"
+type = "Collection"
+description = """Adds all executable binaries in user appdata folder
+        (with recursion depth of 1) to artifacts for analysis."""
+author = "Infocyte"
+guid = "4d5ce2fb-df0f-4186-8116-4957cd405ec8"
+created = "2019-11-21"
+updated = "2020-07-29"
+
+## GLOBALS ##
+# Global variables -> hunt.global('name')
+
+[[globals]]
+
+## ARGUMENTS ##
+# Runtime arguments -> hunt.arg('name')
+
+[[args]]
+
+]=]
+
+--[=[ SECTION 1: Inputs ]=]
+-- get_arg(arg, obj_type, default, is_global, is_required)
+function get_arg(arg, obj_type, default, is_global, is_required)
+    -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
+
+    obj_type = obj_type or "string"
+    if is_global then 
+        obj = hunt.global(arg)
+    else
+        obj = hunt.arg(arg)
+    end
+    if is_required and obj == nil then 
+       hunt.error("ERROR: Required argument '"..arg.."' was not provided")
+       error("ERROR: Required argument '"..arg.."' was not provided") 
+    end
+    if obj ~= nil and type(obj) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+    end
+    
+    if default ~= nil and type(default) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(default)..") for default to '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for default to '"..arg.."', expected "..obj_type)
+    end
+    --print(arg.."[global="..tostring(is_global or false).."]: ["..obj_type.."]"..tostring(obj).." Default="..tostring(default))
+    if obj ~= nil and obj ~= '' then
+        return obj
+    else
+        return default
+    end
+end
 
 opts = {
     "files",
@@ -18,14 +61,14 @@ opts = {
     "recurse=1" --depth of recursion into the folder
 }
 
---[[ SECTION 2: Functions --]]
+--[=[ SECTION 2: Functions ]=]
 
 function is_executable(path)
-    --[[
+    --[=[
         Check if a file is an executable (PE or ELF) by magic number. 
         Input:  [string]path
         Output: [bool] Is Executable
-    ]] 
+    ]=] 
     magicnumbers = {
         "MZ",
         ".ELF"
@@ -52,10 +95,10 @@ function is_executable(path)
 end
 
 function userfolders()
-    --[[
+    --[=[
         Returns a list of userfolders to iterate through
         Output: [list]ret -- List of userfolders (_, path)
-    ]]
+    ]=]
     local paths = {}
     local u = {}
     for _, userfolder in pairs(hunt.fs.ls("C:\\Users", {"dirs"})) do
@@ -71,7 +114,7 @@ function userfolders()
 end
 
 
---[[ SECTION 3: Collection --]]
+--[=[ SECTION 3: Collection ]=]
 
 
 host_info = hunt.env.host_info()

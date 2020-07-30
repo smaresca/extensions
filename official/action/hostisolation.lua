@@ -1,33 +1,87 @@
---[[
-	Infocyte Extension
-	Name: Host Isolation
-	Type: Action
-	Description: | Performs a local network isolation of a Windows, Linux, or OSX
-	 system using windows firewall, iptables, ipfw, or pf |
-	Author: Infocyte
-	Guid: 0c18bac7-5fbf-445d-ada5-0626295a9a81
-	Created: 9-16-2019
-	Updated: 11-19-2019 (Gerritz)
+--[=[
+filetype = "Infocyte Extension"
 
---]]
+[info]
+name = "Host Isolation"
+type = "Action"
+description = """Performs a local network isolation of a Windows, Linux, or OSX
+     system using windows firewall, iptables, ipfw, or pf"""
+author = "Infocyte"
+guid = "0c18bac7-5fbf-445d-ada5-0626295a9a81"
+created = "2019-09-16"
+updated = "2020-07-27"
 
---[[ SECTION 1: Inputs --]]
--- Include any IPs you wish whitelisted within the whitelisted_ips list
-whitelisted_ips = { }
+## GLOBALS ##
+# Global variables -> hunt.global('name')
+
+[[globals]]
+name = "whitelisted_ips"
+description = """Any additional IPs you wish whitelisted for isolated hosts. Comma-seperated list"""
+type = "string"
+required = false
+
+## ARGUMENTS ##
+# Runtime arguments -> hunt.arg('name')
+
+[[args]]
+
+]=]
+
+--[=[ SECTION 1: Inputs ]=]
+-- get_arg(arg, obj_type, default, is_global, is_required)
+function get_arg(arg, obj_type, default, is_global, is_required)
+    -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
+
+    obj_type = obj_type or "string"
+    if is_global then 
+        obj = hunt.global(arg)
+    else
+        obj = hunt.arg(arg)
+    end
+    if is_required and obj == nil then 
+       hunt.error("ERROR: Required argument '"..arg.."' was not provided")
+       error("ERROR: Required argument '"..arg.."' was not provided") 
+    end
+    if obj ~= nil and type(obj) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+    end
+    
+    if default ~= nil and type(default) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(default)..") for default to '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for default to '"..arg.."', expected "..obj_type)
+    end
+    --print(arg.."[global="..tostring(is_global or false).."]: ["..obj_type.."]"..tostring(obj).." Default="..tostring(default))
+    if obj ~= nil and obj ~= '' then
+        return obj
+    else
+        return default
+    end
+end
+
+add_ips = get_arg("whitelisted_ips", "string", nil, true, false)
+whitelisted_ips = {}
+if add_ips ~= nil then
+	for ip in string.gmatch(add_ips, '[^,%s]+') do
+		table.insert(whitelisted_ips, ip)
+	end
+end
 
 -- Infocyte specific IPs DO NOT CHANGE or you will lose connectivity with Infocyte 
-infocyte_ips = {"3.221.153.58",
-  "3.227.41.20",
-  "3.229.46.33",
-  "35.171.204.49",
-  "52.200.73.72",
-  "52.87.145.239"
+infocyte_ips = {
+	"3.221.153.58",
+	"3.227.41.20",
+	"3.229.46.33",
+	"35.171.204.49",
+	"52.200.73.72",
+	"52.87.145.239",
+	"dl.infocyte.com"
 }
 
 backup_location = "C:\\fwbackup.wfw"
 iptables_bkup = "/opt/iptables-bkup"
 
---[[ SECTION 2: Functions --]]
+--[=[ SECTION 2: Functions ]=]
 
 function list_to_string(tbl)
 	n = true
@@ -83,7 +137,8 @@ function path_exists(path)
    return ok, err
 end
 
---[[ SECTION 3: Actions --]]
+
+--[=[ SECTION 3: Actions ]=]
 
 host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"
@@ -96,6 +151,7 @@ if not is_agent_installed() then
 	hunt.install_agent()
 end
 
+disabled = false
 
 if string.find(osversion, "windows xp") then
 	-- TODO: XP's netsh
@@ -105,9 +161,19 @@ elseif hunt.env.is_windows() then
     if path_exists(backup_location) then
         hunt.log("System is already isolated.")
         return
-    end
+	end
+	pipe = io.popen("netsh advfirewall show all state")
+	out = pipe:read("*a")
+	if out:find("State%s+ON") then
+		hunt.log("Windows Firewall is ON")
+	else
+		hunt.warning("Windows Firewall is NOT enabled")
+		disabled = true
+	end
+	
+	if (out:gmatch("State"):gmatch("ON"))
 	os.execute("netsh advfirewall export " .. backup_location)
-
+	
 	-- Disable all rules
 	os.execute("netsh advfirewall firewall set rule all NEW enable=no")
 
@@ -118,6 +184,10 @@ elseif hunt.env.is_windows() then
 	os.execute('netsh advfirewall firewall add rule name="Infocyte Host Isolation (infocyte)" dir=out action=allow protocol=ANY remoteip="' .. list_to_string(hunt.net.api_ipv4())..'"')
 	os.execute('netsh advfirewall firewall add rule name="Infocyte Host Isolation (custom)" dir=out action=allow protocol=ANY remoteip="'..list_to_string(whitelisted_ips)..'"')
 
+	if disabled then 
+		hunt.log("Enabling Windows Firewall")
+		os.execute("Netsh advfirewall set currentprofile state on")
+	end
 elseif hunt.env.is_macos() then
 	-- TODO: ipfw (old) or pf (10.6+)
 
@@ -141,10 +211,10 @@ elseif  hunt.env.has_sh() then
 	hunt.log("Configuring iptables to allow for DNS resolution")
 	os.execute("iptables -I INPUT -s 127.0.0.53 -j ACCEPT")
 
-	hunt.log("Allowing Infocyte Network IP " .. list_to_string(infocyte_ips))
-	for _, az in pairs(infocyte_ips) do
-	  os.execute("iptables -I INPUT -s " .. az .. " -j ACCEPT")
-	end
+	--hunt.log("Allowing Infocyte Network IP " .. list_to_string(infocyte_ips))
+	--for _, az in pairs(infocyte_ips) do
+	  --os.execute("iptables -I INPUT -s " .. az .. " -j ACCEPT")
+	--end
 
 	hunt.log("Allowing Infocyte API IP: " .. list_to_string(hunt.net.api_ipv4()))
 	for _, ip in pairs(hunt.net.api_ipv4()) do
@@ -152,7 +222,7 @@ elseif  hunt.env.has_sh() then
 	end
 
   if next(whitelisted_ips) == nil then
-    hunt.log("User Defined IPs are empty")
+    hunt.debug("User Defined IPs are empty")
   else
 	 hunt.log("Allowing User Defined IPs: " .. list_to_string(whitelisted_ips))
 	  for _, zip in pairs(whitelisted_ips) do

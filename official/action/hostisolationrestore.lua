@@ -1,20 +1,34 @@
---[[
-    Infocyte Extension
-    Name: Host Isolation Restore
-    Description: | Reverses the local network isolation of a Windows, Linux, and OSX
-     systems using windows firewall, iptables, ipfw, or pf respectively |
-    Author: Infocyte
-    Guid: 2896731a-ef52-4569-9669-e9a6d8769e76
-    Created: 9-16-2019
-    Updated: 9-16-2019 (Gerritz)
+--[=[
+filetype = "Infocyte Extension"
 
---]]
+[info]
+name = "Host Isolation Restore"
+type = "Action"
+description = """Reverses the local network isolation of a Windows, Linux, and OSX
+     systems using windows firewall, iptables, ipfw, or pf respectively"""
+author = "Infocyte"
+guid = "2896731a-ef52-4569-9669-e9a6d8769e76"
+created = "2019-9-16"
+updated = "2020-07-27"
 
---[[ SECTION 1: Inputs --]]
+## GLOBALS ##
+# Global variables -> hunt.global('name')
+
+[[globals]]
+
+## ARGUMENTS ##
+# Runtime arguments -> hunt.arg('name')
+
+[[args]]
+
+
+]=]
+
+--[=[ SECTION 1: Inputs ]=]
 backup_location = "C:\\fwbackup.wfw"
 iptables_bkup = "/opt/iptables-bkup"
 
---[[ SECTION 2: Functions --]]
+--[=[ SECTION 2: Functions ]=]
 
 function path_exists(path)
     -- Check if a file or directory exists in this path
@@ -29,7 +43,7 @@ function path_exists(path)
    return ok, err
 end
 
---[[ SECTION 3: Actions --]]
+--[=[ SECTION 3: Actions ]=]
 
 host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"

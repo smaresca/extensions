@@ -1,77 +1,142 @@
---[[
-	Infocyte Extension
-	Name: E-Discovery
-	Type: Collection
-	Description: | Proof of Concept. Searches the hard drive for office documents
+--[=[
+filetype = "Infocyte Extension"
+
+[info]
+name = "E-Discovery"
+type = "Collection"
+description = """Proof of Concept. Searches the hard drive for office documents
         (currently only .doc and .docx files) with specified keywords or alldocs.
         1. Find any office doc on a desktop/server
         2. Upload doc directly to S3 Bucket
         3. Upload metadata csv with filehash as key
 
-        https://asecuritysite.com/forensics/magic |
-    Author: Multiple (Maintained by Gerritz)
-    Guid: 5a0e3b34-4692-4f3c-afff-c84102785756
-	Created: 20190919
-	Updated: 2020406 (Gerritz)
---]]
+        https://asecuritysite.com/forensics/magic"""
+author = "Multiple"
+guid = "5a0e3b34-4692-4f3c-afff-c84102785756"
+created = "2019-09-19"
+updated = "2020-07-29"
 
+## GLOBALS ##
+# Global variables -> hunt.global('name')
 
---[[ SECTION 1: Inputs --]]
-searchpaths = {
-    'C:/Users/'
-}
-strings = {
-    'test',
-    'Gerritz'
-}
+[[globals]]
+name = "s3_keyid"
+description = "S3 Bucket key Id for uploading"
+type = "string"
 
-all_office_docs = false -- set to true to bypass string search
+[[globals]]
+name = "s3_secret"
+description = "S3 Bucket key Secret for uploading"
+type = "secret"
+
+[[globals]]
+name = "s3_region"
+description = "S3 Bucket key Id for uploading. Example: 'us-east-2'"
+type = "string"
+required = true
+
+[[globals]]
+name = "s3_bucket"
+description = "S3 Bucket name for uploading"
+type = "string"
+required = true
+
+[[globals]]
+name = "proxy"
+description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
+type = "string"
+required = false
+
+[[globals]]
+name = "debug"
+description = "Print debug information"
+type = "boolean"
+default = false
+required = false
+
+## ARGUMENTS ##
+# Runtime arguments -> hunt.arg('name')
+
+[[args]]
+
+]=]
+
+--[=[ SECTION 1: Inputs ]=]
+-- get_arg(arg, obj_type, default, is_global, is_required)
+function get_arg(arg, obj_type, default, is_global, is_required)
+    -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
+
+    obj_type = obj_type or "string"
+    if is_global then 
+        obj = hunt.global(arg)
+    else
+        obj = hunt.arg(arg)
+    end
+    if is_required and obj == nil then 
+       hunt.error("ERROR: Required argument '"..arg.."' was not provided")
+       error("ERROR: Required argument '"..arg.."' was not provided") 
+    end
+    if obj ~= nil and type(obj) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+    end
+    
+    if default ~= nil and type(default) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(default)..") for default to '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for default to '"..arg.."', expected "..obj_type)
+    end
+    --print(arg.."[global="..tostring(is_global or false).."]: ["..obj_type.."]"..tostring(obj).." Default="..tostring(default))
+    if obj ~= nil and obj ~= '' then
+        return obj
+    else
+        return default
+    end
+end
+
+searchpaths = get_args("paths", "string", 'C:/Users/cgerr')
+strings = get_args("search_strings", "string", nil, false, true)
+all_office_docs = get_args("all_office_docs", "boolean") -- set to true to bypass string search
+
 --Options for all_office_docs:
 opts = {
     "files",
-    "size<3000kb",
-    "recurse=2"
+    "size<1000kb",
+    "size>1b",
+    "recurse=1"
 }
 
-findByFileHeader = false -- SLOW! False [Default] will search by file path extensions:
+findByFileHeader = get_args("findByFileHeader", "boolean", false) -- SLOW! False [Default] will search by file path extensions:
 magic_numbers = { -- HEX
     '504B0304', -- [PK] Zip or office docx, xlsx, pptx, etc.
     '25504446', -- [%PDF] pdf
     'D0CF11E0A1B11AE1' -- Legacy Office Document (doc, xls, ppt, msg)
 }
 extensions = {
-    "doc",
-    "docx",
-    "xls",
-    "xlsx",
-    "ppt",
-    "pptx",
-    "pdf"
+    "txt"
 }
 
 -- S3 Bucket
-upload_to_s3 = false -- set this to true to upload to your S3 bucket
-s3_keyid = nil
-s3_secret = nil
-s3_region = 'us-east-2' -- US East (Ohio)
-s3_bucket = 'test-extensions'
+upload_to_s3 = get_args("upload_to_s3", "boolean", false) -- set this to true to upload to your S3 bucket
+debug = get_arg("debug", "boolean", false, true, false)
+proxy = get_arg("proxy", "string", nil, true, false)
+s3_keyid = get_arg("s3_keyid", "string", nil, true, false)
+s3_secret = get_arg("s3_secret", "string", nil, true, false)
+s3_region = get_arg("s3_region", "string", nil, true, true)
+s3_bucket = get_arg("s3_bucket", "string", nil, true, true)
 s3path_modifier = 'ediscovery'
 --S3 Path Format: <s3bucket>:<instancename>/<date>/<hostname>/<s3path_modifier>/<filename>
 
---Proxy
-proxy = nil -- "myuser:password@10.11.12.88:8888"
 
-
---[[ SECTION 2: Functions --]]
+--[=[ SECTION 2: Functions ]=]
 
 -- FileSystem Functions --
 function path_exists(path)
-    --[[
+    --[=[
         Check if a file or directory exists in this path. 
         Input:  [string]path -- Add '/' on end of the path to test if it is a folder
         Output: [bool] Exists
                 [string] Error message -- only if failed
-    ]] 
+    ]=] 
    local ok, err = os.rename(path, path)
    if not ok then
       if err == 13 then
@@ -93,11 +158,11 @@ function get_fileextension(path)
 end
 
 function get_magicnumber(path)
-    --[[
+    --[=[
         Get file magic number (first 8 bytes) from header. 
         Input:  [string]path
         Output: [string]headerinhex
-    ]] 
+    ]=] 
     local f,err = io.open(path, "rb")
     if not f then
         hunt.error('Could not open file: '..err)
@@ -118,10 +183,10 @@ end
 
 
 function userfolders()
-    --[[
+    --[=[
         Returns a list of userfolders to iterate through
         Output: [list]ret -- List of userfolders (_, path)
-    ]]
+    ]=]
     local paths = {}
     local u = {}
     for _, userfolder in pairs(hunt.fs.ls("C:\\Users", {"dirs"})) do
@@ -171,11 +236,11 @@ end
 
 
 function list_to_pslist(list)
-    --[[
+    --[=[
         Converts a lua list (table) into a stringified powershell array that can be passed to Powershell
         Input:  [list]list -- Any list with (_, val) format
         Output: [string] -- Example = '@("Value1","Value2","Value3")'
-    ]] 
+    ]=] 
     psarray = "@("
     for _,value in ipairs(list) do
         -- print("Param: " .. tostring(value))
@@ -186,8 +251,7 @@ function list_to_pslist(list)
 end
 
 
-
---[[ SECTION 3: Collection --]]
+--[=[ SECTION 3: Collection ]=]
 
 host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"
@@ -221,7 +285,7 @@ else
 end
 
 -- #region initscript
-script = [==[
+script = [=[
 function Get-FileSignature {
     [CmdletBinding()]
     Param(
@@ -430,7 +494,7 @@ Function Get-StringsMatch {
         return $results
     }
 }
-]==]
+]=]
 -- #endregion
 
 
@@ -452,8 +516,6 @@ if all_office_docs then
             else
                 hunt.error('File does not exist')
             end
-        else
-            print('File does not exist')
         end
     end
     --end

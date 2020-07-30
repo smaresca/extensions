@@ -1,38 +1,42 @@
---[=[
+--[=[ 
 filetype = "Infocyte Extension"
 
 [info]
-name = "Collection Template"
-type = "Collection"
-description = """Example script show format, style, and options for gathering
-     additional data from a host."""
+name = "Run Command"
+type = "Action"
+description = """Runs a command on the shell (bash, powershell, or cmd). WARNING: This is a dangerous extension, run with caution"""
 author = "Infocyte"
-guid = "f8e44229-4d8d-4909-b148-58130b660077"
-created = "2019-09-19"
-updated = "2020-07-27"
+guid = "0d22ae39-bd9e-4448-a418-b4f08dea36b3"
+created = "2020-07-24"
+updated = "2020-07-24"
 
 ## GLOBALS ##
-# Global variables -> hunt.global('name')
+# Global variables accessed within extensions via hunt.global('name')
 
 [[globals]]
-name = "proxy"
-description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
+name = "RunCommand_command"
+description = "Command to run on the default shell (bash, cmd, or powershell). Global variable is optional and used if run time arguent not provided"
 type = "string"
 required = false
 
 [[globals]]
-name = "debug"
-description = "Print debug information"
+name = "disable_powershell"
+description = "Uses cmd instead of powershell if true"
 type = "boolean"
 default = false
 required = false
 
 ## ARGUMENTS ##
-# Runtime arguments -> hunt.arg('name')
+# Runtime arguments are accessed within extensions via hunt.arg('name')
 
 [[args]]
+name = "command"
+description = "Command to run on the default shell"
+type = "string"
+required = true 
 
 ]=]
+
 
 --[=[ SECTION 1: Inputs ]=]
 -- get_arg(arg, obj_type, default, is_global, is_required)
@@ -66,51 +70,39 @@ function get_arg(arg, obj_type, default, is_global, is_required)
     end
 end
 
-debug = get_arg("debug", "boolean", false, true, false)
-proxy = get_arg("proxy", "string", nil, true, false)
+if hunt.arg('command') then
+    command = get_arg('command', "string", nil, false, true)
+else 
+    command = get_arg('RunCommand_command', nil, true, true)
+end
 
+disable_powershell = hunt.global('disable_powershell', "boolean", false, true, false) 
 
 --[=[ SECTION 2: Functions ]=]
 
+--[=[ SECTION 3: Actions ]=]
 
---[=[ SECTION 3: Collection ]=]
-
-
--- All Lua and hunt.* functions are cross-platform.
 host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"
 hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
 
 
-
--- All OS-specific instructions should be behind an 'if' statement
-if hunt.env.is_windows() then
-    -- Insert your Windows code
-
-elseif hunt.env.is_macos() then
-    -- Insert your MacOS Code
-
-
-elseif hunt.env.is_linux() or hunt.env.has_sh() then
-    -- Insert your POSIX (linux) Code
-
+if hunt.env.is_windows() and not disable_powershell then 
+    hunt.log("Running command with Powershell: "..command)
+    out, err = hunt.env.run_powershell(command)
 
 else
-    hunt.warn("Not a compatible operating system for this extension [" .. host_info:os() .. "]")
+    hunt.log("Running command: "..command)
+    pipe = io.popen(command)
+    out = pipe:read("*a")
+    pipe:close()
+
 end
 
-
--- EXAMPLE RESULTS
-result = "good"
-
--- Set the returned threat status of the host based on the string in "result"
-if string.find(result, "good") then
-    -- if result == "test", set extension status to good
+if out then
+    hunt.log(out)
     hunt.status.good()
-elseif string.find(result, "bad") then
-    hunt.status.bad()
-else
-    hunt.status.unknown()
 end
-
-hunt.log("Result: Extension successfully executed on " ..  host_info:hostname())
+if err and err ~= "" then 
+    hunt.error("Error: "..err)
+end

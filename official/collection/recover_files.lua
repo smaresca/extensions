@@ -1,51 +1,137 @@
---[[
-    Infocyte Extension
-    Name: Recover Files
-    Type: Action
-    Description: Recover list of files and folders to S3. Will bypass most file locks.
-    Author: Infocyte
-    Guid: 55f3d0f0-476a-44fe-a583-21e110c74541
-    Created: 20191123
-    Updated: 20191123 (Gerritz)
---]]
+--[=[
+filetype = "Infocyte Extension"
+
+[info]
+name = "Recover Files"
+type = "Collection"
+description = """Recover custom list of files and folders to your recovery point (S3). 
+        S3 Path Format= <s3bucket>:<instancename>/<date>/<hostname>/<s3path_modifier>/<filename>
+        Loads Powerforensics to bypass file locks. Currently only works on Windows"""
+author = "Infocyte"
+guid = "55f3d0f0-476a-44fe-a583-21e110c74541"
+created = "2019-11-23"
+updated = "2020-07-27"
+
+## GLOBALS ##
+# Global variables -> hunt.global('name')
+
+[[globals]]
+name = "s3_keyid"
+description = "S3 Bucket key Id for uploading"
+type = "string"
+
+[[globals]]
+name = "s3_secret"
+description = "S3 Bucket key Secret for uploading"
+type = "secret"
+
+[[globals]]
+name = "s3_region"
+description = "S3 Bucket key Id for uploading. Example: 'us-east-2'"
+type = "string"
+required = true
+
+[[globals]]
+name = "s3_bucket"
+description = "S3 Bucket name for uploading"
+type = "string"
+required = true
+
+[[globals]]
+name = "proxy"
+description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
+type = "string"
+required = false
+
+[[globals]]
+name = "debug"
+description = "Print debug information"
+type = "boolean"
+default = false
+required = false
+
+[[globals]]
+name = "disable_powershell"
+description = "Does not use powershell"
+type = "boolean"
+default = false
+required = false
+
+## ARGUMENTS ##
+# Runtime arguments -> hunt.arg('name')
+
+[[args]]
+name = "path"
+description = '''Path(s) to recover. Accepts comma-seperated list of files and/or folders to recover.
+    Acceptable formats (escape backslashes): 
+        String literal (file): [[c:/bad.exe]],
+        Escaped string (file): "c:/users/adama/ntuser.dat", 
+        Escaped folder (folder): "c:\\windows\\temp\\"
+    '''
+type = "string"
+required = true
+
+]=]
 
 
---[[ SECTION 1: Inputs --]]
+--[=[ SECTION 1: Inputs ]=]
+-- get_arg(arg, obj_type, default, is_global, is_required)
+function get_arg(arg, obj_type, default, is_global, is_required)
+    -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
 
--- S3 Bucket (mandatory)
-s3_keyid = nil
-s3_secret = nil
-s3_region = 'us-east-2' -- 'us-east-2'
-s3_bucket = 'test-extensions' -- 'test-extensions'
-s3path_modifier = "evidence" -- /filename will be appended 
---S3 Path Format: <s3bucket>:<instancename>/<date>/<hostname>/<s3path_modifier>/<filename>
-
--- Proxy (optional)
-proxy = nil -- "myuser:password@10.11.12.88:8888"
-
--- Powerforensics will be used to bypass file locks
-use_powerforensics = true
+    obj_type = obj_type or "string"
+    if is_global then 
+        obj = hunt.global(arg)
+    else
+        obj = hunt.arg(arg)
+    end
+    if is_required and obj == nil then 
+       hunt.error("ERROR: Required argument '"..arg.."' was not provided")
+       error("ERROR: Required argument '"..arg.."' was not provided") 
+    end
+    if obj ~= nil and type(obj) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+    end
+    
+    if default ~= nil and type(default) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(default)..") for default to '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for default to '"..arg.."', expected "..obj_type)
+    end
+    --print(arg.."[global="..tostring(is_global or false).."]: ["..obj_type.."]"..tostring(obj).." Default="..tostring(default))
+    if obj ~= nil and obj ~= '' then
+        return obj
+    else
+        return default
+    end
+end
 
 -- Provide paths below (full file path or folders). Folders will take everything
 -- in the folder.
 -- Format them any of the following ways
 -- NOTE: '\' needs to be escaped unless you make a explicit string like this: [[string]])
-if hunt.env.is_windows() then
-    paths = {
-        [[c:\windows\system32\calc.exe]],
-        'c:\\windows\\system32\\notepad.exe',
-        'c:\\windows\\temp\\infocyte\\',
-        "c:\\users\\adama\\ntuser.dat"
-    }
-else
-    -- If linux or mac
-    paths = {
-        '/bin/cat'
-    }
+
+path = get_arg("path", "string", nil, false, true)
+paths = {}
+if path ~= nil then
+	for val in string.gmatch(path, '[^,%s]+') do
+		table.insert(paths, val)
+	end
 end
 
+-- Powerforensics can be used to bypass file locks
+use_powerforensics = not get_arg("disable_powershell", "boolean", false, true, false)
 
---[[ SECTION 2: Functions --]]
+debug = get_arg("debug", "boolean", false, true, false)
+proxy = get_arg("proxy", "string", nil, true, false)
+s3_keyid = get_arg("s3_keyid", "string", nil, true, false)
+s3_secret = get_arg("s3_secret", "string", nil, true, false)
+s3_region = get_arg("s3_region", "string", nil, true, true)
+s3_bucket = get_arg("s3_bucket", "string", nil, true, true)
+s3path_modifier = "evidence"
+
+
+--[=[ SECTION 2: Functions ]=]
 
 function path_exists(path)
     -- Check if a file or directory exists in this path
@@ -64,10 +150,10 @@ end
 
 -- PowerForensics (optional)
 function install_powerforensics()
-    --[[
+    --[=[
         Checks for NuGet and installs Powerforensics
         Output: [bool] Success
-    ]]
+    ]=]
     if not powershell then 
         hunt.error("Infocyte's powershell lua functions are not available. Add Infocyte's powershell.* functions.")
         throw "Error"
@@ -95,13 +181,7 @@ function install_powerforensics()
     end
 end
 
---[[ SECTION 3: Collection --]]
-
--- Check required inputs
-if not s3_region or not s3_bucket then
-    hunt.error("s3_region and s3_bucket not set")
-    return
-end
+--[=[ SECTION 3: Collection ]=]
 
 host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"

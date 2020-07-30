@@ -1,25 +1,83 @@
---[[
-    Infocyte Extension
-    Name: Amcache Parser
-    Type: Collection
-    Description: | Uses Zimmerman's Amcache parser to parse Amcache and
-        adds those entries to artifacts for analysis |
-    Author: Infocyte
-    Guid: 09660065-7f58-4d51-9e0b-1427d0e42eb3
-    Created: 20191121
-    Updated: 20200318 (Gerritz)
---]]
+--[=[ 
+filetype = "Infocyte Extension"
 
---[[ SECTION 1: Inputs --]]
-debug = false
-differential = true -- Will save last scan locally and only add new items on subsequent scans.
-proxy = nil -- "myuser:password@10.11.12.88:8888"
+[info]
+name = "Amcache Parser"
+type = "Collection"
+description = """Uses Zimmerman's Amcache parser to parse Amcache and
+        adds those entries to artifacts for analysis"""
+author = "Infocyte"
+guid = "09660065-7f58-4d51-9e0b-1427d0e42eb3"
+created = "2019-11-21"
+updated = "2020-07-27"
 
+## GLOBALS ##
+# Global variables accessed within extensions via hunt.global('name')
 
+[[globals]]
+name = "proxy"
+description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
+type = "string"
+required = false
+
+[[globals]]
+name = "debug"
+description = "Print debug information"
+type = "boolean"
+default = false
+required = false
+
+## ARGUMENTS ##
+# Runtime arguments are accessed within extensions via hunt.arg('name')
+
+[[args]]
+name = "differential"
+description = "Gets new entries only. Maintains CSV on disk."
+type = "boolean"
+default = true
+
+]=]
+
+--[=[ SECTION 1: Inputs ]=]
+-- get_arg(arg, obj_type, default, is_global, is_required)
+function get_arg(arg, obj_type, default, is_global, is_required)
+    -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
+
+    obj_type = obj_type or "string"
+    if is_global then 
+        obj = hunt.global(arg)
+    else
+        obj = hunt.arg(arg)
+    end
+    if is_required and obj == nil then 
+       hunt.error("ERROR: Required argument '"..arg.."' was not provided")
+       error("ERROR: Required argument '"..arg.."' was not provided") 
+    end
+    if obj ~= nil and type(obj) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
+    end
+    
+    if default ~= nil and type(default) ~= obj_type then
+        hunt.error("ERROR: Invalid type ("..type(default)..") for default to '"..arg.."', expected "..obj_type)
+        error("ERROR: Invalid type ("..type(obj)..") for default to '"..arg.."', expected "..obj_type)
+    end
+    --print(arg.."[global="..tostring(is_global or false).."]: ["..obj_type.."]"..tostring(obj).." Default="..tostring(default))
+    if obj ~= nil and obj ~= '' then
+        return obj
+    else
+        return default
+    end
+end
+
+differential = get_arg("differential", "boolean", true) -- Will save last scan locally and only add new items on subsequent scans.
 url = 'https://infocyte-support.s3.us-east-2.amazonaws.com/extension-utilities/AmcacheParser.exe'
 amcacheparser_sha1 = 'A17EEF27F3EB3F19B15E2C7E557A7B4FB2257485' -- hash validation of amcashparser.exe (version 1.4) at url
 
---[[ SECTION 2: Functions --]]
+debug = get_arg("debug", "boolean", false, true, false)
+proxy = get_arg("proxy", "string", nil, true, false)
+
+--[=[ SECTION 2: Functions ]=]
 
 function is_executable(path)
     magicnumbers = {
@@ -100,11 +158,11 @@ function make_timestamp(dateString)
     return convertedTimestamp
 end
 
---[[ SECTION 3: Collection --]]
+--[=[ SECTION 3: Collection ]=]
 
 host_info = hunt.env.host_info()
-domain = host_info:domain() or "N/A"
-hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
+domain = 
+hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. (host_info:domain() or "N/A") .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
 
 if not hunt.env.is_windows() then
     hunt.warn("Not a compatible operating system for this extension [" .. host_info:os() .. "]")
@@ -185,7 +243,7 @@ end
 
 -- Parse output using powershell
 script = '$temp = "'..tmppath..'"\n'
-script = script..[==[
+script = script..[=[
 $outpath = "$temp\amcache.csv"
 Get-ChildItem "$temp\temp" -filter *Amcache*.csv | Foreach-Object { 
     $a += gc $_.fullname | convertfrom-csv | where { 
@@ -199,7 +257,7 @@ $a | Foreach-Object {
 $a = $a | Sort-object FileKeyLastWriteTimestamp,sha1,fullpath -unique -Descending
 $a | Export-CSV $outpath -Delimiter "|" -NoTypeInformation -Force
 Remove-item "$temp\temp" -Force -Recurse
-]==]
+]=]
 hunt.debug("Initiatializing Powershell to parse output")
 out, err = hunt.env.run_powershell(script)
 if out then
