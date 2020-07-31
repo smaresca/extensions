@@ -3,7 +3,7 @@ filetype = "Infocyte Extension"
 
 [info]
 name = "Memory Extraction"
-type = "Action"
+type = "Response"
 description = """Uses winpmem/linpmem to dump full physical memory and
        stream it to an S3 bucket, ftp server, or smb share. If output path not
        specified, will dump to local temp folder.

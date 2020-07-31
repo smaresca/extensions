@@ -3,7 +3,7 @@ filetype = "Infocyte Extension"
 
 [info]
 name = "Force System Reboot"
-type = "Action"
+type = "Response"
 description = """Forces system reboot after delay"""
 author = "Infocyte"
 guid = "8bd31ce0-75c4-42d9-a2b3-d32fad3b61ec"

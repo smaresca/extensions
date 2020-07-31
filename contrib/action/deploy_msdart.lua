@@ -3,7 +3,7 @@ filetype = "Infocyte Extension"
 
 [info]
 name = "Deploy MSDaRT Toolset"
-type = "Action"
+type = "Response"
 description = """Deploys Microsoft DaRT tools"""
 author = "Coherent Cyber"
 guid = "2d34e7d7-86c4-42cd-9fa6-d50605e70bf0"

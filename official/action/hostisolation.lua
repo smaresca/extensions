@@ -3,7 +3,7 @@ filetype = "Infocyte Extension"
 
 [info]
 name = "Host Isolation"
-type = "Action"
+type = "Response"
 description = """Performs a local network isolation of a Windows, Linux, or OSX
      system using windows firewall, iptables, ipfw, or pf"""
 author = "Infocyte"

@@ -3,7 +3,7 @@ filetype = "Infocyte Extension"
 
 [info]
 name = "Run Command"
-type = "Action"
+type = "Response"
 description = """Runs a command on the shell (bash, powershell, or cmd). WARNING: This is a dangerous extension, run with caution"""
 author = "Infocyte"
 guid = "0d22ae39-bd9e-4448-a418-b4f08dea36b3"

@@ -3,7 +3,7 @@ filetype = "Infocyte Extension"
 
 [info]
 name = "Terminate Process"
-type = "Action"
+type = "Response"
 description = """Kills a process by path and/or deletes the associated file"""
 author = "Infocyte"
 guid = "e7824ed1-7ac9-46eb-addc-6949bf2cc084"

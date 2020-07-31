@@ -3,7 +3,7 @@ filetype = "Infocyte Extension"
 
 [info]
 name = "Host Isolation Restore"
-type = "Action"
+type = "Response"
 description = """Reverses the local network isolation of a Windows, Linux, and OSX
      systems using windows firewall, iptables, ipfw, or pf respectively"""
 author = "Infocyte"
