@@ -6,7 +6,7 @@ name = "Terminate Process"
 type = "Action"
 description = """Kills a process by path and/or deletes the associated file"""
 author = "Infocyte"
-guid = "f0565351-1dc3-4a94-90b3-34a5765b33bc"
+guid = "e7824ed1-7ac9-46eb-addc-6949bf2cc084"
 created = "2020-01-23"
 updated = "2020-07-22"
 
@@ -30,6 +30,12 @@ name = "TerminateProcess_delete_file"
 description = "deletes the provided path"
 type = "boolean"
 default = true
+
+[[globals]]
+name = "debug"
+description = "Used to debug the script"
+type = "boolean"
+default = false
 
 ## ARGUMENTS ##
 # Runtime arguments are accessed within extensions via hunt.arg('name')
@@ -105,6 +111,8 @@ if not kill_process then
     kill_process = get_arg("kill_process", "boolean", true, true) 
 end
 
+debug = get_arg("debug", "boolean", false, true, false) 
+
 --[=[ SECTION 2: Functions ]=]
 
 --[=[ SECTION 3: Actions ]=]
@@ -113,6 +121,12 @@ host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"
 hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
 
+if debug then 
+    hunt.log("Debugging: firing up notepad and killing it")
+    os.execute("notepad.exe")
+    os.execute("sleep 5")
+    path = [[C:\Windows\System32\notepad.exe]]
+end
 
 if kill_process then 
     hunt.log("Finding and killing processes that match the path:"..path)
@@ -126,6 +140,7 @@ if kill_process then
             if out then
                 hunt.log("SUCCESS: Killed "..proc:path().." [pid: "..proc:pid().."]")
                 hunt.status.good()
+                os.execute("sleep 5")
             else 
                 hunt.error("FAILED: Could not kill "..proc:path().." [pid: "..proc:pid().."]: "..err)
                 hunt.status.bad()

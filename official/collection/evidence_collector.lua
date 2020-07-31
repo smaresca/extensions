@@ -207,18 +207,22 @@ if hunt.env.is_windows() then
 
     -- Record LocalTimeZone
     regtz = hunt.registry.list_values("\\Registry\\Machine\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation")
-    for n,v in pairs(regtz) do
-        if n:match("TimeZoneKeyName") then
-            name = v
-        elseif n:match("ActiveTimeBias") then
-            bias = tonumber(v) or "Error"
-            if type(bias) == "number" then
-                bias = string.format("%d", (bias/60))
+    if regtz then
+        for n,v in pairs(regtz) do
+            if n:match("TimeZoneKeyName") then
+                name = v
+            elseif n:match("ActiveTimeBias") then
+                bias = tonumber(v) or "Error"
+                if type(bias) == "number" then
+                    bias = string.format("%d", (bias/60))
+                end
             end
         end
+        tz = (name or 'Error').." ("..(bias or 'Error')..")"
+        hunt.log("Local Timezone: "..tz)
+    else 
+        hunt.Error("Could got get Local Timezone from registry")
     end
-    tz = name.." ("..bias..")"
-    hunt.log("Local Timezone: "..tz)
 
 
     paths = {}
