@@ -49,7 +49,7 @@ host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"
 hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
 
-
+osversion = host_info:os()
 if string.find(osversion, "windows xp") then
 	-- TO DO: XP's netsh firewall
 
@@ -59,6 +59,7 @@ elseif hunt.env.is_windows() then
 		os.execute("netsh advfirewall import " .. backup_location)
 		os.remove(backup_location)
 		-- os.execute("netsh advfirewall reset")
+		hunt.log("Host has been restored and is no longer isolated")
 	else
 		hunt.error("Host has no backup. Cannot be restored (it may not have been isolated).")
 	end
@@ -74,9 +75,9 @@ elseif  hunt.env.has_sh() then
 		output = assert(handle:read('*a'))
 		handle:close()
 		os.remove(iptables_bkup)
+		hunt.log("Host has been restored and is no longer isolated")
 	else
 		hunt.error("Host has no backup. Cannot be restored (it may not have been isolated).")
 	end
 end
 
-hunt.log("Host has been restored and is no longer isolated")

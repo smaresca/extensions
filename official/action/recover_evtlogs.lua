@@ -3,7 +3,7 @@ filetype = "Infocyte Extension"
 
 [info]
 name = "Recover Event Logs"
-type = "Collection"
+type = "Response"
 description = """Collects raw event logs from system and forwards
         them to your Recovery point. S3 Path Format: 
         <s3bucket>:<instancename>/<date>/<hostname>/<s3path_modifier>/<filename>

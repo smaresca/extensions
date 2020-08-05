@@ -3,7 +3,7 @@ filetype = "Infocyte Extension"
 
 [info]
 name = "PowerForensics MFT"
-type = "Collection"
+type = "Response"
 description = """Deploy PowerForensics and gathers forensic data to Recovery
         Location. This extension requires definition of a Recovery Location 
         (S3)"""
