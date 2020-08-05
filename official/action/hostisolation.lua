@@ -144,6 +144,7 @@ host_info = hunt.env.host_info()
 domain = host_info:domain() or "N/A"
 hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
 
+osversion = host_info:os()
 
 -- TO DO: Check for Agent and install if not present
 -- agent will be the only thing able to communicate out
@@ -158,20 +159,19 @@ if string.find(osversion, "windows xp") then
 
 elseif hunt.env.is_windows() then
 	-- Backup:
-    if path_exists(backup_location) then
-        hunt.log("System is already isolated.")
-        return
+	if path_exists(backup_location) then
+	    hunt.log("System is already isolated.")
+	    return
 	end
 	pipe = io.popen("netsh advfirewall show all state")
 	out = pipe:read("*a")
 	if out:find("State%s+ON") then
-		hunt.log("Windows Firewall is ON")
+		hunt.debug("Windows Firewall is ON")
 	else
-		hunt.warning("Windows Firewall is NOT enabled")
+		hunt.warning("Windows Firewall is NOT enabled. Will attempt to enable it but this could conflict with other firewall software")
 		disabled = true
 	end
-	
-	if (out:gmatch("State"):gmatch("ON"))
+
 	os.execute("netsh advfirewall export " .. backup_location)
 	
 	-- Disable all rules
