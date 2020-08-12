@@ -101,15 +101,15 @@ function get_arg(arg, obj_type, default, is_global, is_required)
 end
 
 -- Args
-use_s3 = get_arg("use_s3", "string", false, false, false)
+use_s3 = get_arg("use_s3", "boolean", false, false, false)
 
 -- Globals
 debug = get_arg("debug", "boolean", false, true, false)
 proxy = get_arg("proxy", "string", nil, true, false)
 s3_keyid = get_arg("s3_keyid", "string", nil, true, false)
 s3_secret = get_arg("s3_secret", "string", nil, true, false)
-s3_region = get_arg("s3_region", "string", nil, true, true)
-s3_bucket = get_arg("s3_bucket", "string", nil, true, true)
+s3_region = get_arg("s3_region", "string", nil, true, use_s3)
+s3_bucket = get_arg("s3_bucket", "string", nil, true, use_s3)
 s3path_modifier = "evidence"
 
 --[=[ SECTION 2: Functions ]=]
@@ -126,6 +126,11 @@ function path_exists(path)
       end
    end
    return ok, err
+end
+
+function get_filename(path)
+    match = path:match("^.+[\\/](.+)$")
+    return match
 end
 
 
@@ -178,7 +183,7 @@ if use_s3 then
 
     for _, p in pairs(logs) do
         for _, path in pairs(hunt.fs.ls(p)) do
-            fn = get_filename(file:path())
+            fn = get_filename(path:path())
             -- Send File to S3
             if path_exists(path:path()) and (string.find(fn, "^agent-") or string.find(fn, "^worker-")) then
                 s3path = s3path_preamble.."/"..path:name()
@@ -203,17 +208,20 @@ else
         for _, path in pairs(hunt.fs.ls(p)) do
             -- loop to last file
             if string.find(path:path(), "agent-") or string.find(path:path(), "worker-") then
-                fn = get_filename(file:path())
+                fn = get_filename(path:path())
+                logpath = path:path()
             end
         end
-        if string.find(fn, "^agent-") or string.find(path:path(), "worker-") then
-            local file,err = io.open(path:path(), "r")
+        if fn and (string.find(fn, "^agent-") or string.find(fn, "worker-")) then
+            print("Getting "..logpath)
+            local file,err = io.open(logpath, "r")
             if file then
-                hunt.log(path:path()..":\n---\n"..file:read("*all").."\n---")
+                len = file:seek("end", -5120)
+                log = file:read("*a")
+                print(log)
+                --hunt.log(logpath..":\n---\n"..log.."\n---")
                 file:close()
             end
-        else 
-            hunt.warning("Logs not found")
         end
     end
 end
