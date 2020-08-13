@@ -205,23 +205,24 @@ else
 
     -- Collect last file
     for _, p in pairs(logs) do
+        new = false
         for _, path in pairs(hunt.fs.ls(p)) do
             -- loop to last file
             if string.find(path:path(), "agent-") or string.find(path:path(), "worker-") then
                 fn = get_filename(path:path())
                 logpath = path:path()
+                new = true
             end
         end
-        if fn and (string.find(fn, "^agent-") or string.find(fn, "worker-")) then
-            print("Getting "..logpath)
+        if new and fn and (string.find(fn, "^agent-") or string.find(fn, "worker-")) then
             local file,err = io.open(logpath, "r")
             if file then
                 len = file:seek("end", -5120)
                 log = file:read("*a")
-                print(log)
-                --hunt.log(logpath..":\n---\n"..log.."\n---")
+                hunt.log(logpath..":\n---\n"..log.."\n---")
                 file:close()
             end
+            new = false
         end
     end
 end
