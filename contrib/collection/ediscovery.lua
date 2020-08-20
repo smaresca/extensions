@@ -19,45 +19,45 @@ updated = "2020-07-29"
 ## GLOBALS ##
 # Global variables -> hunt.global('name')
 
-[[globals]]
-name = "s3_keyid"
-description = "S3 Bucket key Id for uploading"
-type = "string"
+    [[globals]]
+    name = "s3_keyid"
+    description = "S3 Bucket key Id for uploading"
+    type = "string"
 
-[[globals]]
-name = "s3_secret"
-description = "S3 Bucket key Secret for uploading"
-type = "secret"
+    [[globals]]
+    name = "s3_secret"
+    description = "S3 Bucket key Secret for uploading"
+    type = "secret"
 
-[[globals]]
-name = "s3_region"
-description = "S3 Bucket key Id for uploading. Example: 'us-east-2'"
-type = "string"
-required = true
+    [[globals]]
+    name = "s3_region"
+    description = "S3 Bucket key Id for uploading. Example: 'us-east-2'"
+    type = "string"
+    required = true
 
-[[globals]]
-name = "s3_bucket"
-description = "S3 Bucket name for uploading"
-type = "string"
-required = true
+    [[globals]]
+    name = "s3_bucket"
+    description = "S3 Bucket name for uploading"
+    type = "string"
+    required = true
 
-[[globals]]
-name = "proxy"
-description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
-type = "string"
-required = false
+    [[globals]]
+    name = "proxy"
+    description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
+    type = "string"
+    required = false
 
-[[globals]]
-name = "debug"
-description = "Print debug information"
-type = "boolean"
-default = false
-required = false
+    [[globals]]
+    name = "debug"
+    description = "Print debug information"
+    type = "boolean"
+    default = false
+    required = false
 
 ## ARGUMENTS ##
 # Runtime arguments -> hunt.arg('name')
 
-[[args]]
+    [[args]]
 
 ]=]
 

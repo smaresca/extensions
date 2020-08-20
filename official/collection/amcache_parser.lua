@@ -14,27 +14,27 @@ updated = "2020-07-27"
 ## GLOBALS ##
 # Global variables accessed within extensions via hunt.global('name')
 
-[[globals]]
-name = "proxy"
-description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
-type = "string"
-required = false
+    [[globals]]
+    name = "proxy"
+    description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
+    type = "string"
+    required = false
 
-[[globals]]
-name = "debug"
-description = "Print debug information"
-type = "boolean"
-default = false
-required = false
+    [[globals]]
+    name = "debug"
+    description = "Print debug information"
+    type = "boolean"
+    default = false
+    required = false
 
 ## ARGUMENTS ##
 # Runtime arguments are accessed within extensions via hunt.arg('name')
 
-[[args]]
-name = "differential"
-description = "Gets new entries only. Maintains CSV on disk."
-type = "boolean"
-default = true
+    [[args]]
+    name = "differential"
+    description = "Gets new entries only. Maintains CSV on disk."
+    type = "boolean"
+    default = true
 
 ]=]
 

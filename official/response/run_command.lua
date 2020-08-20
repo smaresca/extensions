@@ -13,27 +13,27 @@ updated = "2020-07-24"
 ## GLOBALS ##
 # Global variables accessed within extensions via hunt.global('name')
 
-[[globals]]
-name = "RunCommand_command"
-description = "Command to run on the default shell (bash, cmd, or powershell). Global variable is optional and used if run time arguent not provided"
-type = "string"
-required = false
+    [[globals]]
+    name = "RunCommand_command"
+    description = "Command to run on the default shell (bash, cmd, or powershell). Global variable is optional and used if run time arguent not provided"
+    type = "string"
+    required = false
 
-[[globals]]
-name = "disable_powershell"
-description = "Uses cmd instead of powershell if true"
-type = "boolean"
-default = false
-required = false
+    [[globals]]
+    name = "disable_powershell"
+    description = "Uses cmd instead of powershell if true"
+    type = "boolean"
+    default = false
+    required = false
 
 ## ARGUMENTS ##
 # Runtime arguments are accessed within extensions via hunt.arg('name')
 
-[[args]]
-name = "command"
-description = "Command to run on the default shell"
-type = "string"
-required = true 
+    [[args]]
+    name = "command"
+    description = "Command to run on the default shell"
+    type = "string"
+    required = true 
 
 ]=]
 

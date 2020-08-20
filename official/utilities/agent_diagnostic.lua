@@ -2,30 +2,18 @@
 filetype = "Infocyte Extension"
 
 [info]
-name = "Collection Template"
+name = "Infocyte Agent Diagnostic"
 type = "Collection"
-description = """Example script show format, style, and options for gathering
-     additional data from a host."""
+description = """Diagnose agent cpu usage and health."""
 author = "Infocyte"
-guid = "f8e44229-4d8d-4909-b148-58130b660077"
-created = "2019-09-19"
-updated = "2020-07-27"
+guid = "6bd0be6b-b8e4-4233-a2de-607ae2fdab1a"
+created = "2020-08-13"
+updated = "2020-08-13"
 
 ## GLOBALS ##
 # Global variables -> hunt.global('name')
 
     [[globals]]
-    name = "proxy"
-    description = "Proxy info. Example: myuser:password@10.11.12.88:8888"
-    type = "string"
-    required = false
-
-    [[globals]]
-    name = "debug"
-    description = "Print debug information"
-    type = "boolean"
-    default = false
-    required = false
 
 ## ARGUMENTS ##
 # Runtime arguments -> hunt.arg('name')
@@ -33,6 +21,7 @@ updated = "2020-07-27"
     [[args]]
 
 ]=]
+
 
 --[=[ SECTION 1: Inputs ]=]
 -- get_arg(arg, obj_type, default, is_global, is_required)
@@ -66,15 +55,29 @@ function get_arg(arg, obj_type, default, is_global, is_required)
     end
 end
 
-debug = get_arg("debug", "boolean", false, true, false)
-proxy = get_arg("proxy", "string", nil, true, false)
-
-
 --[=[ SECTION 2: Functions ]=]
 
 
---[=[ SECTION 3: Collection ]=]
+function path_exists(path)
+    -- Check if a file or directory exists in this path
+    -- add '/' on end to test if it is a folder
+   local ok, err = os.rename(path, path)
+   if not ok then
+      if err == 13 then
+         -- Permission denied, but it exists
+         return true
+      end
+   end
+   return ok, err
+end
 
+function get_filename(path)
+    match = path:match("^.+[\\/](.+)$")
+    return match
+end
+
+
+--[=[ SECTION 3: Actions ]=]
 
 -- All Lua and hunt.* functions are cross-platform.
 host_info = hunt.env.host_info()
@@ -82,35 +85,63 @@ domain = host_info:domain() or "N/A"
 hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
 
 
-
--- All OS-specific instructions should be behind an 'if' statement
 if hunt.env.is_windows() then
-    -- Insert your Windows code
+    logs = {
+        "C:\\windows\\temp\\logs\\",
+        "C:\\program files\\infocyte\\agent\\logs\\",
+        "C:\\program files\\infocyte\\HUNT Controller\\logs\\"
+    }
 
 elseif hunt.env.is_macos() then
     -- Insert your MacOS Code
+    logs = {
+        "/tmp/logs/",
+        "/opt/infocyte/agent/logs/"
+    }
 
 
 elseif hunt.env.is_linux() or hunt.env.has_sh() then
-    -- Insert your POSIX (linux) Code
-
+    -- Insert your POSIX-compatible (linux) Code
+    logs = {
+        "/tmp/logs/",
+        "/usr/local/infocyte/agent/logs/"
+    }
 
 else
     hunt.warn("Not a compatible operating system for this extension [" .. host_info:os() .. "]")
+    return
 end
 
-
--- EXAMPLE RESULTS
-result = "good"
-
--- Set the returned threat status of the host based on the string in "result"
-if string.find(result, "good") then
-    -- if result == "test", set extension status to good
-    hunt.status.good()
-elseif string.find(result, "bad") then
-    hunt.status.bad()
-else
-    hunt.status.unknown()
+-- Collect last file
+for _, p in pairs(logs) do
+    new = false
+    for _, path in pairs(hunt.fs.ls(p)) do
+        -- loop to last file
+        if string.find(path:path(), "agent-") or string.find(path:path(), "worker-") then
+            fn = get_filename(path:path())
+            logpath = path:path()
+            new = true
+        end
+    end
+    if new and fn and (string.find(fn, "^agent-") or string.find(fn, "worker-")) then
+        local file,err = io.open(logpath, "r")
+        if file then
+            len = file:seek("end", -5120)
+            log = file:read("*a")
+            hunt.log(logpath..":\n---\n"..log.."\n---")
+            file:close()
+        end
+        new = false
+    end
 end
 
-hunt.log("Result: Extension successfully executed on " ..  host_info:hostname())
+script = [==[
+$ProcessName = "agent.exe"
+
+#$ProcessName = (Get-Process -Id $ProcessPID).Name
+$CpuCores = (Get-WMIObject Win32_ComputerSystem).NumberOfLogicalProcessors
+$Samples = (Get-Counter "\Process($Processname*)\% Processor Time").CounterSamples
+$Samples | Select `
+InstanceName,
+@{Name="CPU %";Expression={[Decimal]::Round(($_.CookedValue / $CpuCores), 2)}}
+]==]

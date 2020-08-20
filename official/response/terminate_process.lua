@@ -13,50 +13,50 @@ updated = "2020-07-22"
 ## GLOBALS ##
 # Global variables accessed within extensions via hunt.global('name')
 
-[[globals]]
-name = "TerminateProcess_path"
-description = "path(s) to kill/delete (comma seperated for multiple)"
-type = "string"
-required = true
+    [[globals]]
+    name = "TerminateProcess_path"
+    description = "path(s) to kill/delete (comma seperated for multiple)"
+    type = "string"
+    required = true
 
-[[globals]]
-name = "TerminateProcess_kill_process"
-description = "kills processes with the provided path"
-type = "boolean"
-default = true
+    [[globals]]
+    name = "TerminateProcess_kill_process"
+    description = "kills processes with the provided path"
+    type = "boolean"
+    default = true
 
-[[globals]]
-name = "TerminateProcess_delete_file"
-description = "deletes the provided path"
-type = "boolean"
-default = true
+    [[globals]]
+    name = "TerminateProcess_delete_file"
+    description = "deletes the provided path"
+    type = "boolean"
+    default = true
 
-[[globals]]
-name = "debug"
-description = "Used to debug the script"
-type = "boolean"
-default = false
+    [[globals]]
+    name = "debug"
+    description = "Used to debug the script"
+    type = "boolean"
+    default = false
 
 ## ARGUMENTS ##
 # Runtime arguments are accessed within extensions via hunt.arg('name')
 
-[[args]]
-name = "path"
-description = "path(s) to kill/delete (comma seperated for multiple)"
-type = "string"
-required = true
+    [[args]]
+    name = "path"
+    description = "path(s) to kill/delete (comma seperated for multiple)"
+    type = "string"
+    required = true
 
-[[args]]
-name = "kill_process"
-description = "kills processes with the provided path"
-type = "boolean"
-default = true
+    [[args]]
+    name = "kill_process"
+    description = "kills processes with the provided path"
+    type = "boolean"
+    default = true
 
-[[args]]
-name = "delete_file"
-description = "deletes the provided path"
-type = "boolean"
-default = true
+    [[args]]
+    name = "delete_file"
+    description = "deletes the provided path"
+    type = "boolean"
+    default = true
 
 ]=]
 

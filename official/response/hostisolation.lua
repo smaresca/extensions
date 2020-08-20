@@ -14,16 +14,16 @@ updated = "2020-07-27"
 ## GLOBALS ##
 # Global variables -> hunt.global('name')
 
-[[globals]]
-name = "whitelisted_ips"
-description = """Any additional IPs you wish whitelisted for isolated hosts. Comma-seperated list"""
-type = "string"
-required = false
+	[[globals]]
+	name = "whitelisted_ips"
+	description = """Any additional IPs you wish whitelisted for isolated hosts. Comma-seperated list"""
+	type = "string"
+	required = false
 
 ## ARGUMENTS ##
 # Runtime arguments -> hunt.arg('name')
 
-[[args]]
+	[[args]]
 
 ]=]
 

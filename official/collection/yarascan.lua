@@ -14,35 +14,35 @@ updated = "2020-07-20"
 ## GLOBALS ##
 # Global variables -> hunt.global('name')
 
-[[globals]]
+    [[globals]]
 
 
 ## ARGUMENTS ##
 # Runtime arguments -> hunt.arg('name')
 
-[[args]]
-name = "scan_activeprocesses"
-description = "Adds running processes to list of paths to scan"
-type = "boolean"
-default = true
+    [[args]]
+    name = "scan_activeprocesses"
+    description = "Adds running processes to list of paths to scan"
+    type = "boolean"
+    default = true
 
-[[args]]
-name = "scan_appdata"
-description = "Recurse through each user's appdata for binaries to scan (windows only)"
-type = "boolean"
-default = false
+    [[args]]
+    name = "scan_appdata"
+    description = "Recurse through each user's appdata for binaries to scan (windows only)"
+    type = "boolean"
+    default = false
 
-[[args]]
-name = "max_size"
-description = "Largest size of binary in Kb"
-type = "int"
-default = 5000
+    [[args]]
+    name = "max_size"
+    description = "Largest size of binary in Kb"
+    type = "int"
+    default = 5000
 
-[[args]]
-name = "additional_paths" 
-description = "Additional paths to scan"
-type = "string"
-default = ""
+    [[args]]
+    name = "additional_paths" 
+    description = "Additional paths to scan"
+    type = "string"
+    default = ""
 
 ]=]
 

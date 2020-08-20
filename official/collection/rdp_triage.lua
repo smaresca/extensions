@@ -16,23 +16,23 @@ updated = "2020-07-20"
 ## GLOBALS ##
 # Global variables -> hunt.global('name')
 
-[[globals]]
-name = "trailing_days"
-type = "int"
-default = 60
-required = false
+    [[globals]]
+    name = "trailing_days"
+    type = "int"
+    default = 60
+    required = false
 
-[[globals]]
-name = "debug"
-description = "Print debug information"
-type = "boolean"
-default = false
-required = false
+    [[globals]]
+    name = "debug"
+    description = "Print debug information"
+    type = "boolean"
+    default = false
+    required = false
 
 ## ARGUMENTS ##
 # Runtime arguments -> hunt.arg('name')
 
-[[Args]]
+    [[Args]]
 
 ]=]
 

@@ -14,12 +14,12 @@ updated = "2020-07-29"
 ## GLOBALS ##
 # Global variables -> hunt.global('name')
 
-[[globals]]
+    [[globals]]
 
 ## ARGUMENTS ##
 # Runtime arguments -> hunt.arg('name')
 
-[[args]]
+    [[args]]
 
 ]=]
 
