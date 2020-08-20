@@ -47,7 +47,6 @@ updated = "2020-07-27"
 ]=]
 
 --[=[ SECTION 1: Inputs ]=]
--- get_arg(arg, obj_type, default, is_global, is_required)
 function get_arg(arg, obj_type, default, is_global, is_required)
     -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
     obj_type = obj_type or "string"
@@ -66,16 +65,17 @@ function get_arg(arg, obj_type, default, is_global, is_required)
     end
     
     if default ~= nil and type(default) ~= obj_type then
-        msg = "ERROR: Invalid type ("..type(default)..") for default to '"..arg.."', expected "..obj_type
         hunt.error(msg); error(msg)
     end
-    hunt.debug("INPUT[global="..tostring(is_global or false).."]: "..arg.."["..obj_type.."]"=..tostring(obj).."; Default="..tostring(default))
+
+    hunt.debug("INPUT[global="..tostring(is_global or false).."]: "..arg.."["..obj_type.."]"..tostring(obj).."; Default="..tostring(default))
     if obj ~= nil and obj ~= '' then
         return obj
     else
         return default
     end
 end
+
 
 regex_suspicious_default = [[readme.*\.txt$]]
 regex_suspicious = get_arg("regex_suspicious", "string", regex_suspicious_default)
@@ -227,7 +227,7 @@ if powershell then
         cmd = "Get-ChildItem -Path '"..path.."' -Recurse -Depth "..recurse_depth.." -Filter *.txt | where-object { $_.Name -match '"..regex_bad.."' } | Select FullName -ExpandProperty FullName"
         out, err = hunt.env.run_powershell(cmd)
         if out then
-            for line in out:gmatch"[^\n]+" do
+            for line in out:gmatch("[^\n]+") do
                 hunt.status.bad() -- Set Threat to Suspicious on finding
                 hunt.log("[BAD]'"..regex_bad.."': "..line) -- Send to Infocyte Extension Output
             end
