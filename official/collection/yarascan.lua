@@ -35,7 +35,7 @@ updated = "2020-07-20"
     [[args]]
     name = "max_size"
     description = "Largest size of binary in Kb"
-    type = "int"
+    type = "number"
     default = 5000
 
     [[args]]

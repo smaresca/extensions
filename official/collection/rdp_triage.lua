@@ -18,7 +18,7 @@ updated = "2020-07-20"
 
     [[globals]]
     name = "trailing_days"
-    type = "int"
+    type = "number"
     default = 60
     required = false
 
@@ -69,7 +69,7 @@ function get_arg(arg, obj_type, default, is_global, is_required)
     end
 end
 
-trailing_days = get_arg("trailing_days", "int", 60, true)
+trailing_days = get_arg("trailing_days", "number", 60, true)
 debug = get_arg("debug", "boolean", false, true)
 
 if(get_arg("disable_powershell", "boolean", false, true, false)) then

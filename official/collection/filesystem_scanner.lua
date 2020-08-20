@@ -40,7 +40,7 @@ updated = "2020-07-27"
     [[args]]
     name = "recurse_depth"
     description = "Levels below the folder to search through"
-    type = "int"
+    type = "number"
     default = 3
 
 
