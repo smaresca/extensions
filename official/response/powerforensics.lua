@@ -60,6 +60,35 @@ updated = "2020-07-20"
 ]=]
 
 --[=[ SECTION 1: Inputs ]=]
+function get_arg(arg, obj_type, default, is_global, is_required)
+    -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
+    obj_type = obj_type or "string"
+    if is_global then 
+        obj = hunt.global(arg)
+    else
+        obj = hunt.arg(arg)
+    end
+    if is_required and obj == nil then
+        msg = "ERROR: Required argument '"..arg.."' was not provided"
+        hunt.error(msg); error(msg) 
+    end
+    if obj ~= nil and type(obj) ~= obj_type then
+        msg = "ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type
+        hunt.error(msg); error(msg)
+    end
+    
+    if default ~= nil and type(default) ~= obj_type then
+        hunt.error(msg); error(msg)
+    end
+
+    hunt.debug("INPUT[global="..tostring(is_global or false).."]: "..arg.."["..obj_type.."]"..tostring(obj).."; Default="..tostring(default))
+    if obj ~= nil and obj ~= '' then
+        return obj
+    else
+        return default
+    end
+end
+
 
 debug = get_arg("debug", "boolean", false, true, false)
 proxy = get_arg("proxy", "string", nil, true, false)
