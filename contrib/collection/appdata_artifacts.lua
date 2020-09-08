@@ -12,54 +12,27 @@ created = "2019-11-21"
 updated = "2020-07-29"
 
 ## GLOBALS ##
-# Global variables -> hunt.global('name')
+# Global variables
+# -> hunt.global(name = string, default = <type>, isRequired = boolean) 
 
     [[globals]]
 
 ## ARGUMENTS ##
-# Runtime arguments -> hunt.arg('name')
+# Runtime arguments
+# -> hunt.arg(name = string, default = <type>, isRequired = boolean) 
 
     [[args]]
+    name = 'max_size'
+    type = 'number'
+    description = 'Max size of file to analyze in kB'
+    default = 1000
+    required = false
 
 ]=]
 
 --[=[ SECTION 1: Inputs ]=]
--- get_arg(arg, obj_type, default, is_global, is_required)
-function get_arg(arg, obj_type, default, is_global, is_required)
-    -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
 
-    obj_type = obj_type or "string"
-    if is_global then 
-        obj = hunt.global(arg)
-    else
-        obj = hunt.arg(arg)
-    end
-    if is_required and obj == nil then 
-       hunt.error("ERROR: Required argument '"..arg.."' was not provided")
-       error("ERROR: Required argument '"..arg.."' was not provided") 
-    end
-    if obj ~= nil and type(obj) ~= obj_type then
-        hunt.error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
-        error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
-    end
-    
-    if default ~= nil and type(default) ~= obj_type then
-        hunt.error("ERROR: Invalid type ("..type(default)..") for default to '"..arg.."', expected "..obj_type)
-        error("ERROR: Invalid type ("..type(obj)..") for default to '"..arg.."', expected "..obj_type)
-    end
-    --print(arg.."[global="..tostring(is_global or false).."]: ["..obj_type.."]"..tostring(obj).." Default="..tostring(default))
-    if obj ~= nil and obj ~= '' then
-        return obj
-    else
-        return default
-    end
-end
-
-opts = {
-    "files",
-    "size<1mb", -- all files below this size
-    "recurse=1" --depth of recursion into the folder
-}
+max_size = hunt.arg.number('max_size', 1000, false)
 
 --[=[ SECTION 2: Functions ]=]
 
@@ -118,16 +91,21 @@ end
 
 
 host_info = hunt.env.host_info()
-domain = host_info:domain() or "N/A"
-hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
+hunt.debug(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
 
 if not hunt.env.is_windows() then
-    hunt.log("Not a compatible operating system for this extension [" .. host_info:os() .. "]")
+    hunt.log(f"Not a compatible operating system for this extension [${ host_info:os()}]")
     return
 end
 
+
 -- Add paths
 paths = {}
+opts = {
+    "files",
+    f"size<${max_size}kb", -- all files below this size
+    "recurse=1" --depth of recursion into the folder
+}
 for _, userfolder in pairs(userfolders()) do
     for _, path in pairs(hunt.fs.ls(userfolder.."\\appdata\\roaming", opts)) do
         --print(path:path())
@@ -140,11 +118,12 @@ end
 -- Create a new artifact
 n = 0
 for path,_ in pairs(paths) do
+    print(f"Adding: ${path}")
     artifact = hunt.survey.artifact()
     artifact:exe(path)
-    artifact:type("AppData Binary")
+    artifact:type("AppData")
     hunt.survey.add(artifact)
     n = n +1
 end
 
-hunt.log("Added "..n.." paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
+hunt.log(f"Added ${n} paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")

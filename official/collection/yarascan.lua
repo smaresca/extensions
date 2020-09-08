@@ -12,13 +12,35 @@ created = "2019-10-18"
 updated = "2020-07-20"
 
 ## GLOBALS ##
-# Global variables -> hunt.global('name')
+# Global variables
+# -> hunt.global(name = string, default = <type>, isRequired = boolean) 
 
     [[globals]]
+    name = "yarascanner_scan_activeprocesses"
+    description = "Adds running processes to list of paths to scan"
+    type = "boolean"
+    default = true
 
+    [[globals]]
+    name = "yarascanner_scan_appdata"
+    description = "Recurse through each user's appdata for binaries to scan (windows only)"
+    type = "boolean"
+    default = false
+
+    [[globals]]
+    name = "yarascanner_max_size"
+    description = "Largest size of binary in Kb"
+    type = "number"
+    default = 5000
+
+    [[globals]]
+    name = "yarascanner_additional_paths" 
+    description = "Additional paths to scan"
+    type = "string"
 
 ## ARGUMENTS ##
-# Runtime arguments -> hunt.arg('name')
+# Runtime arguments
+# -> hunt.arg(name = string, default = <type>, isRequired = boolean) 
 
     [[args]]
     name = "scan_activeprocesses"
@@ -42,48 +64,21 @@ updated = "2020-07-20"
     name = "additional_paths" 
     description = "Additional paths to scan"
     type = "string"
-    default = ""
 
 ]=]
 
 
 --[=[ SECTION 1: Inputs ]=]
--- get_arg(arg, obj_type, default, is_global, is_required)
-function get_arg(arg, obj_type, default, is_global, is_required)
-    -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
 
-    obj_type = obj_type or "string"
-    if is_global then 
-        obj = hunt.global(arg)
-    else
-        obj = hunt.arg(arg)
-    end
-    if is_required and obj == nil then 
-       hunt.error("ERROR: Required argument '"..arg.."' was not provided")
-       error("ERROR: Required argument '"..arg.."' was not provided") 
-    end
-    if obj ~= nil and type(obj) ~= obj_type then
-        hunt.error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
-        error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
-    end
-    
-    if default ~= nil and type(default) ~= obj_type then
-        hunt.error("ERROR: Invalid type ("..type(default)..") for default to '"..arg.."', expected "..obj_type)
-        error("ERROR: Invalid type ("..type(obj)..") for default to '"..arg.."', expected "..obj_type)
-    end
-    --print(arg.."[global="..tostring(is_global or false).."]: ["..obj_type.."]"..tostring(obj).." Default="..tostring(default))
-    if obj ~= nil and obj ~= '' then
-        return obj
-    else
-        return default
-    end
-end
+scan_activeprocesses = hunt.arg.boolean("scan_activeprocesses") or hunt.global.boolean("yarascanner_scan_activeprocesses", false, true)
 
-scan_activeprocesses = get_arg("scan_activeprocesses", "boolean", true)
-scan_appdata = get_arg("scan_appdata", "boolean", false)
-max_size = get_arg("max_size", "number", 5000)
-additional_paths = get_arg("additional_paths", "string")
---print("Inputs: scan_activeprocesses="..tostring(scan_activeprocesses)..", scan_appdata="..tostring(scan_appdata)..", max_size="..max_size..", additional_paths="..tostring(additional_paths))
+scan_appdata = hunt.arg.boolean("scan_appdata") or hunt.global.boolean("yarascanner_scan_appdata", "boolean", "global", false, false)
+
+max_size = hunt.arg.number("max_size") or hunt.global.number("yarascanner-max_size", false, 5000)
+
+additional_paths = hunt.arg.string("additional_paths", false) or hunt.global.string("yarascanner_additional_paths", false)
+
+hunt.debug(f"Inputs: scan_activeprocesses=${scan_activeprocesses}, scan_appdata=${scan_appdata}, max_size=${max_size}, additional_paths=${additional_paths}")
 
 -- #region bad_rules
 bad_rules = [=[
@@ -1465,11 +1460,19 @@ function is_executable(path)
 end
 
 
+function string_to_list(str)
+    -- Converts a comma seperated list to a lua list object
+    list = {}
+    for s in string.gmatch(str, '([^,]+)') do
+        table.insert(list, s)
+    end
+    return list
+end
+
 --[=[ SECTION 3: Collection ]=]
 
 host_info = hunt.env.host_info()
-hunt.debug("Starting Extention. Hostname: "..host_info:hostname()..", Domain: "..(host_info:domain() or 'N/A')..", OS: "..host_info:os()..", Architecture: "..host_info:arch())
-
+hunt.debug(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
 
 -- Load Yara rules
 yara_bad = hunt.yara.new()
@@ -1483,17 +1486,18 @@ yara_info:add_rule(info_rules)
 
 opts = {
     "files",
-    "size<="..max_size.."kb", -- any file below this size
+    f"size<=${max_size}kb", -- any file below this size
 }
 
 -- Add active processes
 paths = {} -- add to keys of list to easily unique paths
 if scan_activeprocesses then
     procs = hunt.process.list()
-    for i, proc in pairs(procs) do
+    for i, p in pairs(procs) do
+        proc = p
         file = hunt.fs.ls(proc:path(), opts)
         if #file == 1 and file[1]:size() < max_size * 1000 then
-            --hunt.debug("Adding processpath["..i.."]: " .. proc:path().." ["..file[1]:name().."] size="..file[1]:size())
+            --hunt.debug(f"Adding processpath[${i}]: ${proc:path()} [${file[1]:name()}] size=${file[1]:size()}")
             paths[proc:path()] = true -- add to keys of list to unique paths
         end
     end
@@ -1502,12 +1506,13 @@ end
 -- Add appdata paths
 appdata_opts = {
     "files",
-    "size<"..max_size.."kb", -- any file below this size
+    f"size<${max_size}kb", -- any file below this size
     "recurse=1" -- depth of 1
 }
 if scan_appdata then
-    for _, userfolder in pairs(hunt.fs.ls("C:\\Users", {"dirs"})) do
-        for _, path in pairs(hunt.fs.ls(userfolder:path().."\\appdata\\roaming", appdata_opts)) do
+    for _, u in pairs(hunt.fs.ls("C:\\Users", {"dirs"})) do
+        userfolder = u
+        for _, path in pairs(hunt.fs.ls(f"${userfolder:path()}\\appdata\\roaming", appdata_opts)) do
             if is_executable(path:path()) then
                 paths[path:path()] = true
             end
@@ -1517,14 +1522,8 @@ end
 
 -- Add additional paths
 if additional_paths then
-    more_paths = {}
-    if string.gmatch(additional_paths, ',') then 
-        for path in string.gmatch(additional_paths, '([^,]+)') do
-            table.insert(more_paths, path)
-        end
-    else 
-        table.insert(more_paths, additional_paths)
-    end
+    more_paths = string_to_list(additional_paths)
+    
     for i, path in pairs(more_paths) do
         files = hunt.fs.ls(path, opts)
         for _,path2 in pairs(files) do
@@ -1542,14 +1541,17 @@ matchedpaths = {}
 -- Scan all paths with Yara signatures
 n=1
 for path, i in pairs(paths) do
-    hunt.debug("["..n.."] Scanning "..path)
+    if debug and n > 3 then
+        break
+    end
+    hunt.debug(f"[${n}] Scanning ${path}")
     n=n+1
     hunt.verbose("Scanning with bad_rules")
     for _, signature in pairs(yara_bad:scan(path)) do
         if not hash then
             hash = hunt.hash.sha1(path)
         end
-        hunt.log("Matched yara rule [BAD]"..signature.." on: "..path.." <"..hash..">")
+        hunt.log(f"Matched yara rule [BAD]${signature} on: ${path} <${hash}>")
         bad = true
 		matchedpaths[path] = true
     end
@@ -1558,7 +1560,7 @@ for path, i in pairs(paths) do
         if not hash then
             hash = hunt.hash.sha1(path)
         end
-        hunt.log("Matched yara rule [SUSPICIOUS]"..signature.." on: "..path.." <"..hash..">")
+        hunt.log(f"Matched yara rule [SUSPICIOUS]${signature} on: ${path} <${hash}>")
         suspicious = true
 		matchedpaths[path] = true
     end
@@ -1567,7 +1569,7 @@ for path, i in pairs(paths) do
         if not hash then
             hash = hunt.hash.sha1(path)
         end
-        hunt.log("Matched yara rule [INFO]"..signature.." on: "..path.." <"..hash..">")
+        hunt.log(f"Matched yara rule [INFO]${signature} on: ${path} <${hash}>")
         lowrisk = true
     end
     hash = nil
@@ -1576,6 +1578,9 @@ end
 -- Add bad and suspicious files to Artifacts list for analysis
 n = 0
 for path,i in pairs(matchedpaths) do
+    if debug and n > 3 then
+        break
+    end
 	-- Create a new artifact
 	artifact = hunt.survey.artifact()
 	artifact:exe(path)
@@ -1599,6 +1604,6 @@ else
     hunt.status.good()
 end
 
-hunt.log("Yara scan completed. Result="..result.." Added "..n.." paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
+hunt.log(f"Yara scan completed. Result=${result} Added ${n} paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
 
 

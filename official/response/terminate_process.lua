@@ -14,19 +14,19 @@ updated = "2020-07-22"
 # Global variables accessed within extensions via hunt.global('name')
 
     [[globals]]
-    name = "TerminateProcess_path"
+    name = "terminateprocess_default_path"
     description = "path(s) to kill/delete (comma seperated for multiple)"
     type = "string"
     required = true
 
     [[globals]]
-    name = "TerminateProcess_kill_process"
+    name = "terminateprocess_kill_process"
     description = "kills processes with the provided path"
     type = "boolean"
     default = true
 
     [[globals]]
-    name = "TerminateProcess_delete_file"
+    name = "terminateprocess_delete_file"
     description = "deletes the provided path"
     type = "boolean"
     default = true
@@ -62,64 +62,27 @@ updated = "2020-07-22"
 
 
 --[=[ SECTION 1: Inputs ]=]
--- get_arg(arg, obj_type, default, is_global, is_required)
-function get_arg(arg, obj_type, default, is_global, is_required)
-    -- Checks arguments (arg) or globals (global) for validity and returns the arg if it is set, otherwise nil
 
-    obj_type = obj_type or "string"
-    if is_global then 
-        obj = hunt.global(arg)
-    else
-        obj = hunt.arg(arg)
-    end
-    if is_required and obj == nil then 
-       hunt.error("ERROR: Required argument '"..arg.."' was not provided")
-       error("ERROR: Required argument '"..arg.."' was not provided") 
-    end
-    if obj ~= nil and type(obj) ~= obj_type then
-        hunt.error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
-        error("ERROR: Invalid type ("..type(obj)..") for argument '"..arg.."', expected "..obj_type)
-    end
-    
-    if default ~= nil and type(default) ~= obj_type then
-        hunt.error("ERROR: Invalid type ("..type(default)..") for default to '"..arg.."', expected "..obj_type)
-        error("ERROR: Invalid type ("..type(obj)..") for default to '"..arg.."', expected "..obj_type)
-    end
-    --print(arg.."[global="..tostring(is_global or false).."]: ["..obj_type.."]"..tostring(obj).." Default="..tostring(default))
-    if obj ~= nil and obj ~= '' then
-        return obj
-    else
-        return default
-    end
-end
-
-paths = {}
-path = get_arg("path", "string", nil, false, false)
-if path == nil then
-    path = get_arg("path", "string", nil, true, true)
-end
-for val in string.gmatch(path, '[^,%s]+') do
-	table.insert(paths, val)
-end
-
-delete_file = get_arg("delete_file", "boolean")
-if not delete_file then
-    delete_file = get_arg("delete_file", "boolean", true, true)
-end
-kill_process = get_arg("kill_process", "boolean", true) 
-if not kill_process then
-    kill_process = get_arg("kill_process", "boolean", true, true) 
-end
-
-debug = get_arg("debug", "boolean", false, true, false) 
+path = hunt.arg.string("path") or hunt.global.string("terminateprocess_default_path", true)
+delete_file = hunt.arg.boolean("delete_file") or hunt.global.boolean("terminateprocess_delete_file", false, true)
+kill_process = hunt.arg.boolean("kill_process") or hunt.global.boolean("terminateprocess_kill_process", false, true) 
+local debug = hunt.arg.boolean("debug", false, false) 
 
 --[=[ SECTION 2: Functions ]=]
+
+function string_to_list(str)
+    -- Converts a comma seperated list to a lua list object
+    list = {}
+    for s in string.gmatch(str, '([^,]+)') do
+        table.insert(list, s)
+    end
+    return list
+end
 
 --[=[ SECTION 3: Actions ]=]
 
 host_info = hunt.env.host_info()
-domain = host_info:domain() or "N/A"
-hunt.debug("Starting Extention. Hostname: " .. host_info:hostname() .. ", Domain: " .. domain .. ", OS: " .. host_info:os() .. ", Architecture: " .. host_info:arch())
+hunt.debug(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
 
 if debug then 
     hunt.log("Debugging: firing up notepad and killing it")
@@ -128,53 +91,83 @@ if debug then
     path = [[C:\Windows\System32\notepad.exe]]
 end
 
+paths = string_to_list(path)
+
 if kill_process then 
-    hunt.log("Finding and killing processes that match the path:"..path)
+    hunt.log(f"Finding and killing processes that match the path: ${path}")
     -- List running processes
-    found = false
-    for _, proc in pairs(hunt.process.list()) do
+    proc_found = false
+    for _, p in pairs(hunt.process.list()) do
+        proc = p
         if string.lower(proc:path()) == string.lower(path) then 
-            found = true
-            hunt.log("Process found! Killing pid "..proc:pid())
+            proc_found = true
+            hunt.log(f"Process found! Killing pid ${proc:pid()}")
             out, err = hunt.process.kill_pid(proc:pid())
             if out then
-                hunt.log("SUCCESS: Killed "..proc:path().." [pid: "..proc:pid().."]")
+                hunt.log(f"SUCCESS: Killed ${proc:path()} [pid: ${proc:pid()}]")
                 hunt.status.good()
+                killed = true
                 os.execute("sleep 5")
-            else 
-                hunt.error("FAILED: Could not kill "..proc:path().." [pid: "..proc:pid().."]: "..err)
-                hunt.status.bad()
+            else
+                killed = false 
+                hunt.error(f"FAILED: Could not kill ${proc:path()} [pid: ${proc:pid()}]: ${err}")
+                hunt.status.suspicous()
             end
         end
     end
-    if not found then 
-        hunt.log("NOT FOUND: Process with path "..path)
+    if not proc_found then 
+        hunt.log(f"NOT FOUND: Process with path ${path}")
         hunt.status.low_risk()
     end 
 end
 
-if delete_file then 
-    hunt.log("Finding and deleting "..path)
-    found = false
-    for _,file in pairs(hunt.fs.ls(path, {"files"})) do
-        found = true
-        hunt.log("Found file "..path.." [Size="..tostring(file:size()).."] -- Attempting to remove...")
+if delete_file then
+    if debug then
+        path = "C:/windows/temp/test/txt"
+        hunt.log(f"Debugging: creating ${path} and deleting it")
+        os.execute(f"test > ${path}")
+        os.execute("sleep 5")
     end
 
-    ok, err = os.remove(path)
-    if ok then 
-        hunt.log("SUCCESS: "..path.." was deleted.")
-        hunt.status.good()
-    else
-        if found and err:match("No such file") then 
-            hunt.error("FAILED: Could not delete "..path..": OS could not see file, you may need raw drive access to delete this file (this extension currently does not support this)")
-            hunt.status.bad()
-        elseif not found then
-            hunt.log("NOT FOUND: "..path)
-            hunt.status.low_risk()
+    hunt.log("Finding and deleting "..path)
+    file_found = false
+    for _,i in pairs(hunt.fs.ls(path, {"files"})) do
+        file = i
+        file_found = true
+        hunt.log(f"Found file ${path} [Size=${file:size()}] -- Attempting to remove...")
+    end
+    if file_found then
+        ok, err = os.remove(path)
+        if ok then
+            deleted = true
+            hunt.log(f"SUCCESS: ${path} was deleted.")
+            hunt.status.good()
         else
-            hunt.error("FAILED: "..err)
-            hunt.status.suspicious()
+            deleted = false
+            if err:match("No such file") then 
+                hunt.error(f"FAILED: Could not delete ${path}: OS could not see file, you may need raw drive access to delete this file (this extension currently does not support this)")
+                hunt.status.bad()
+            else
+                hunt.error(f"FAILED: ${err}")
+                hunt.status.suspicious()
+            end
         end
-    end    
+    else
+        hunt.log(f"NOT FOUND: ${path}")
+        hunt.status.low_risk()
+    end
 end
+
+if killed and deleted then 
+    hunt.summary("SUCCESS: File killed and deleted")
+end
+
+summary = ""
+if kill_process and delete_file then
+    summary = f"Running=${proc_found}, Killed=${killed}, Found=${file_found}, Deleted=${deleted}"
+elseif kill_process then
+    summary = f"Running=${proc_found}, Killed=${killed}"
+elseif deleted then
+    summary = f"Found=${file_found}, Deleted=${deleted}"
+end
+hunt.summary(summary)
