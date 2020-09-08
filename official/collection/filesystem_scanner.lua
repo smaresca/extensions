@@ -18,13 +18,13 @@ updated = "2020-07-27"
     name = "filesystem_scanner_default_regex_bad"
     description = "Filesystem scanner regex to produce an alerting match against"
     type = "string"
-    default = '(^[0-9,A-Z,a-z]{4,6}-Readme.txt$)|DECRYPT'
+    default = """(^[0-9,A-Z,a-z]{4,6}-Readme.txt$)|DECRYPT"""
 
     [[globals]]
     name = "filesystemscanner_default_regex_suspicious"
     description = "Filesystem scanner regex to produce a non-alerting match against"
     type = "string"
-    default = '''readme.*\.txt$'''
+    default = """readme.*\.txt$"""
 
     [[globals]]
     name = "trailing_days"
