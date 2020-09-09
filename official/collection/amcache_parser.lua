@@ -243,7 +243,7 @@ if path_exists(outpath) then
     hunt.debug("Parsing Powershell Output...")
     csv = parse_csv(outpath, sep)
     if not csv then
-        hunt.error("Failed: Could not parse CSV: ${outpath}")
+        hunt.error(f"Failed: Could not parse CSV: ${outpath}")
     end
 else
     hunt.error(f"Failed: Could not find powershell output csv at ${outpath}")

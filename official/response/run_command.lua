@@ -68,7 +68,7 @@ if out then
     hunt.summary(f"Executed: ${command}")
 end
 if err and err ~= "" then 
-    hunt.error("Error: "..err)
+    hunt.error(f"Error: ${err}")
     hunt.summary(f"ERROR: ${command} -- ${err}")
 end
 

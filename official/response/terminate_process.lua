@@ -129,7 +129,7 @@ if delete_file then
         os.execute("sleep 5")
     end
 
-    hunt.log("Finding and deleting "..path)
+    hunt.log(f"Finding and deleting ${path}")
     file_found = false
     for _,i in pairs(hunt.fs.ls(path, {"files"})) do
         file = i

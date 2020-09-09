@@ -135,7 +135,7 @@ elseif hunt.env.is_linux() or hunt.env.has_sh() then
     }
 
 else
-    hunt.warn("Not a compatible operating system for this extension [" .. host_info:os() .. "]")
+    hunt.warn(f"Not a compatible operating system for this extension [${host_info:os()}]")
     return
 end
 
@@ -148,7 +148,7 @@ if use_s3 then
         instancename = instance:match("(.+).infocyte.com")
     end
     s3 = hunt.recovery.s3(s3_keyid, s3_secret, s3_region, s3_bucket)
-    s3path_preamble = instancename..'/'..os.date("%Y%m%d")..'/'..host_info:hostname().."/"..s3path_modifier
+    s3path_preamble = f"${instancename}/${os.date('%Y%m%d')}/${host_info:hostname()}/${s3path_modifier}"
 
 
     for _, logpath in pairs(logs) do
@@ -158,7 +158,7 @@ if use_s3 then
             -- Send File to S3
             if path_exists(path:path()) and (string.find(fn, "^agent-") or string.find(fn, "^worker-")) then
                 s3path = f"${s3path_preamble}/${path:name()}"
-                link = "https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
+                link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
 
                 -- Upload to S3
                 success, err = s3:upload_file(path:path(), s3path)

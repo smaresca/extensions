@@ -189,7 +189,7 @@ for name, p in pairs(files) do
     path = p
     -- Upload file to S3
     s3path = f"${s3path_preamble}/${name}_${path:name()}"
-    link = "https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
+    link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
     s3:upload_file(path:path(), s3path)
     size = string.format("%.2f", (path:size()/1000))
     hunt.log(f"Uploaded ${path:name()} - ${path:path()} (size= ${size}KB, sha1=${hash}) to S3 bucket ${link}")

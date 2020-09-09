@@ -191,8 +191,8 @@ for _, path in pairs(hunt.fs.ls(tempfolder())) do
             hash = 'Hashing Skipped'
         end
         s3path = s3path_preamble.."/"..path:name()
-        link = "https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
-        hunt.log("Scheduling the Upload of Memory Dump ${s3path} (sha1=${hash}) to S3 at ${link}")
+        link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
+        hunt.log(f"Scheduling the Upload of Memory Dump ${s3path} (sha1=${hash}) to S3 at ${link}")
         script = script .. f"recovery:upload_file([[${path:path()}]], '${s3path}')\n"
         script = script .. f"os.remove([[${path:path()}]])\n"
     end
@@ -208,10 +208,10 @@ if hunt.env.is_windows() then
     scriptfile:close()
     -- Retain survey for background task
     bgsurveypath = 'C:\\windows\\temp\\survey2.exe'
-    os.execute('Powershell.exe -nologo -nop -command "Copy-Item C:\\windows\\temp\\s1.exe  -Destination '..bgsurveypath..' -Force')
+    os.execute(f'Powershell.exe -nologo -nop -command "Copy-Item C:\\windows\\temp\\s1.exe  -Destination ${bgsurveypath} -Force')
 
     -- Use Scheduled Tasks
-    os.execute('SCHTASKS /CREATE /SC ONCE /RU "SYSTEM" /TN "Infocyte\\Upload" /TR "cmd.exe /c '..bgsurveypath..' -r '..timeout..' --only-extensions --extensions '..scriptpath..'" /ST 23:59 /F')
+    os.execute(f"SCHTASKS /CREATE /SC ONCE /RU 'SYSTEM' /TN 'Infocyte\\Upload' /TR 'cmd.exe /c ${bgsurveypath} -r ${timeout} --only-extensions --extensions '${scriptpath}' /ST 23:59 /F")
     os.execute('SCHTASKS /RUN /TN "Infocyte\\Upload"')
 
 else
@@ -223,7 +223,7 @@ else
 
     -- Retain survey for background task
     bgsurveypath = '/tmp/survey2.bin'
-    os.execute("sudo chmod +x "..bgsurveypath)
+    os.execute(f"sudo chmod +x ${bgsurveypath}")
 
     if hunt.env.is_macos() then
         -- Enable at command
@@ -240,7 +240,7 @@ else
 
     end
     -- use at command
-    os.execute('#!/bin/sh\n"'..bgsurveypath..' -r '..timeout..' --only-extensions --extensions '..scriptpath..'" > /tmp/icat.sh')
+    os.execute(f"#!/bin/sh\n${bgsurveypath} -r ${timeout} --only-extensions --extensions '${scriptpath}' > /tmp/icat.sh")
     os.execute('sudo at now +1 minutes -f /tmp/icat.sh')
 end
 

@@ -48,7 +48,7 @@ if hunt.env.is_linux() or hunt.env.has_sh() or hunt.env.is_macos() then
         file, err = io.open(path, "r")
         if file then
             for line in file:lines() do
-                hunt.log("Analyzing: "..line)
+                hunt.log(f"Analyzing: ${line}")
                 -- Add to artifacts and send file through Infocyte analysis pipeline
                 autostart = hunt.survey.autostart()
                 autostart:exe(line)

@@ -27,10 +27,10 @@ function install_powerforensics()
     ]=]
     out, err = hunt.env.run_powershell(script)
     if out then 
-        hunt.log("[install_powerforensics] Succeeded:\n"..out)
+        hunt.log(f"[install_powerforensics] Succeeded:\n${out}")
         return true
     else 
-        hunt.error("[install_powerforensics] Failed:\n"..err)
+        hunt.error(f"[install_powerforensics] Failed:\n${err}")
         return false
     end
 end
@@ -226,7 +226,7 @@ function print_table(tbl, indent)
     toprint = ""
     if not tbl then return toprint end
     if type(tbl) ~= "table" then 
-        print("print_table error: Not a table. "..tostring(tbl))
+        print(f"print_table error: Not a table. ${tbl}")
         return toprint
     end
     for k, v in pairs(tbl) do
@@ -323,7 +323,7 @@ function ftp.upload(path, address, username, password)
         ]=]
         out, err = hunt.env.run_powershell(script)
         if not out then 
-            hunt.error("Failure: "..err)
+            hunt.error(f"Failure: ${err}")
             return false
         end
         return true

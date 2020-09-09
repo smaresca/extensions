@@ -404,16 +404,16 @@ for name,path in pairs(paths) do
         -- hash file
         hash, err = hunt.hash.sha1(outpath)
         if not hash then
-            hunt.debug("Error hashing file: ${outpath}, error: "..err)
+            hunt.debug(f"Error hashing file: ${outpath}, error: ${err}")
             goto continue
         end
 
         -- Upload file to S3
-        s3path = f"${s3path_preamble}/${name}_${f[1]:name()}"
-        link = "https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
+        s3path = f"${s3path_preamble}/${name}_${fi[1]:name()}"
+        link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
         s3:upload_file(outpath, s3path)
-        size = string.format("%.2f", (f[1]:size()/1000))
-        hunt.log("Uploaded ${name} - ${path} (size= ${size}KB, sha1= ${hash}) to S3 bucket ${link}")
+        size = string.format("%.2f", (fi[1]:size()/1000))
+        hunt.log(f"Uploaded ${name} - ${path} (size= ${size}KB, sha1= ${hash}) to S3 bucket ${link}")
         files_uploaded = files_uploaded + 1
         os.remove(outpath)
         ::continue::

@@ -285,7 +285,7 @@ end
 user_sids = hunt.registry.list_keys("\\Registry\\User")
 for _,user_sid in pairs(user_sids) do
     key = '\\Registry\\User\\' ..user_sid..'\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
-    hunt.debug("Querying key: "..key)
+    hunt.debug(f"Querying key: ${key}")
     values = hunt.registry.list_values(key)
     if values then
         for property_name,value in pairs(values) do
@@ -306,7 +306,7 @@ end
 ```lua
 -- Hash a file
 hash = hunt.hash.sha1('/bin/bash')
-hunt.log("/bin/bash: " .. hash)
+hunt.log(f"/bin/bash: ${hash}")
 ```
 
 ```lua
@@ -317,7 +317,7 @@ some_data = "an important string to hash"
 bytes = { string.byte(some_data, 1, -1) }
 hash = hunt.hash.sha1_data(bytes)
 -- output: "hashed: e70d27cd90d42fdd7674ac965d7d5fa56ca95fdc"
-hunt.log("hashed: " .. hash)
+hunt.log(f"hashed: ${hash})
 ```
 
 | Function | Description |

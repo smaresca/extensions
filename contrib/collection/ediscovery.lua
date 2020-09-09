@@ -549,7 +549,7 @@ if all_office_docs then
         if upload_to_s3 then
             s3path = f"${s3path_preamble}/${hash}${ext}"
             link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
-            hunt.log("Uploading ${path:path()} (size=${file.size}, sha1=${hash}) to S3 bucket ${link}")
+            hunt.log(f"Uploading ${path:path()} (size=${file.size}, sha1=${hash}) to S3 bucket ${link}")
             s3:upload_file(path:path(), s3path)
         else
             hunt.log(f"Found ${path:path()} (size= ${file.size}, sha1=${hash})")

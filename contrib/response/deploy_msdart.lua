@@ -86,7 +86,7 @@ if hunt.env.is_windows() then
             $shell.Namespace("$Tmp\").copyhere($item)
         }
     ]=]
-    hunt.debug("Executing Script:\n"..unzip_script)
+    hunt.debug(f"Executing Script:\n${unzip_script}")
 
     out, err = hunt.env.run_powershell(unzip_script)
     if out or path_exists(cmdpath) then

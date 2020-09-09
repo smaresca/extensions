@@ -108,7 +108,7 @@ end
 host_info = hunt.env.host_info()
 hunt.debug(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
 if not hunt.env.is_windows() then
-    hunt.warn("Not a compatible operating system for this extension [" .. host_info:os() .. "]")
+    hunt.warn(f"Not a compatible operating system for this extension [${host_info:os()}]")
 end
 
 tmppath = os.getenv("systemroot").."\\temp\\ic"
@@ -304,13 +304,13 @@ if rdp_processes and #rdp_processes > 0 then
         -- Create a new artifact
         artifact = hunt.survey.artifact()
         artifact:exe(v['ProcessPath'])
-        artifact:type("RDP Process ["..v['EventId'].."]")
+        artifact:type(f"RDP Process [${v['EventId']}]")
         artifact:params(v['Commandline'])
         artifact:executed(v['TimeCreated'])
         hunt.survey.add(artifact)
         n = n + 1
         
-        hunt.log("RDP Process ["..(v['EventId'] or '').."]"..": eventtime="..(v['TimeCreated'] or '')..", ip=".. (v['IP'] or '')..", username=".. (v['domain'] or '').."\\"..(v['Username'] or '')..", sid=".. (v['SecurityId'] or '')..", pid=".. (v['ProcessId'] or '')..", path=".. (v['ProcessPath'] or '') ..", commandline=".. (v['Commandline'] or '')..", ppid=".. (v['ParentProcessId'] or '')..", pppath=".. (v['ParentProcessPath'] or '')..", logontime=".. (v['SessionLogonTime'] or ''))
+        hunt.log(f"RDP Process [${v['EventId']}]: eventtime=${v['TimeCreated']}, ip=${v['IP']}, username=${v['domain']}\\${v['Username']}, sid=${v['SecurityId']}, pid=${v['ProcessId']}, path=${v['ProcessPath']}, commandline=${v['Commandline']}, ppid=${v['ParentProcessId']}, pppath=${v['ParentProcessPath']}, logontime=${v['SessionLogonTime']}")
     end
 else
     hunt.warn("No processes found associated with RDP sessions. Logging may not be enabled for EventId 4688 or 4624")
@@ -318,7 +318,7 @@ end
 
 if rdp_localSessionManager and #rdp_localSessionManager > 0 then 
     for i,v in pairs(rdp_localSessionManager) do 
-        hunt.log("RDP Session ["..(v['EventId'] or '').."]"..": eventtime="..(v['TimeCreated'] or '')..", ip=".. (v['IP'] or '')..", username=".. (v['domain'] or '').."\\"..(v['Username'] or '')..", message="..(v['Action'] or ''))
+        hunt.log(f"RDP Session [${v['EventId']}]: eventtime=${v['TimeCreated']}, ip=${v['IP']}, username=${v['domain']}\\${v['Username']}, message=${v['Action']}")
     end
 else 
     hunt.warn("No remote RDP sessions found. Logging may not be enabled for EventId 21 or 24")
@@ -326,7 +326,7 @@ end
 
 if rdp_remoteConnectionManager and #rdp_remoteConnectionManager > 0 then
     for i,v in pairs(rdp_remoteConnectionManager) do 
-        hunt.log("RDP Connection Attempt ["..(v['EventId'] or '').."]"..", eventtime="..(v['TimeCreated'] or '')..", ip="..(v['IP'] or '')..", username="..(v['domain'] or '').."\\"..(v['Username'] or ''))
+        hunt.log(f"RDP Connection Attempt [${v['EventId']}], eventtime=${v['TimeCreated']}, ip=${v['IP']}, username=${v['domain']}\\${v['Username']}")
     end
 else 
     hunt.warn("No remote RDP connection attempts found. Logging may not be enabled for EventId 1149")
@@ -334,8 +334,9 @@ end
 
 if rdp_logons and #rdp_logons > 0 then
     for i,v in pairs(rdp_logons) do 
-        hunt.log("RDP Logon ["..(v['EventId'] or '').."]"..": eventtime="..(v['TimeCreated'] or '')..", ip="..(v['IP'] or '')..", username=".. (v['domain'] or '').."\\"..(v['Username'] or '')..", sid="..(v['SecurityId'] or '')..", logontype="..(v['LogonType'] or ''))
+        hunt.log(f"RDP Logon [${v['EventId']}]: eventtime=${v['TimeCreated']}, ip=${v['IP']}, username=${v['domain']}\\${v['Username']}, sid=${v['SecurityId']}, logontype=${v['LogonType']}")
     end
 else
     hunt.warn("No remote RDP logon events found. Logging may not be enabled for EventId 4624")
 end
+
