@@ -381,7 +381,7 @@ for name,path in pairs(paths) do
     fi = hunt.fs.ls(path)
     if #fi > 0 then
         -- If file is being used or locked, this copy will get passed it (usually)
-        outpath = f"${os.getenv("temp")}\\ic\\${fi[1]:name()}"
+        outpath = f"${os.getenv('temp')}\\ic\\${fi[1]:name()}"
         infile, err = io.open(path, "rb")
         if not infile and hunt.env.has_powershell() then
             -- Assume file locked by kernel, use powerforensics to copy
