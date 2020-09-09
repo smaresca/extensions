@@ -135,12 +135,12 @@ USBHistory      = hunt.arg.boolean("USBHistory", false, true)
 
 -- Global Variables
 use_powerforensics = not hunt.global.boolean("disable_powershell", false, false)
-debug           = hunt.global.boolean("debug", false, false)
-proxy           = hunt.global.string("proxy", nil, false)
-s3_keyid        = hunt.global.string("s3_keyid", nil, false)
-s3_secret       = hunt.global.string("s3_secret", nil, false)
-s3_region       = hunt.global.string("s3_region", nil, true)
-s3_bucket       = hunt.global.string("s3_bucket", nil, true)
+local debug     = hunt.global.boolean("debug", false, false)
+proxy           = hunt.global.string("proxy", false)
+s3_keyid        = hunt.global.string("s3_keyid", false)
+s3_secret       = hunt.global.string("s3_secret", false)
+s3_region       = hunt.global.string("s3_region", true)
+s3_bucket       = hunt.global.string("s3_bucket", true)
 s3path_modifier = "evidence"
 
 --[=[ SECTION 2: Functions ]=]
@@ -374,7 +374,7 @@ elseif instance:match("infocyte") then
     -- get instancename
     instancename = instance:match("(.+).infocyte.com")
 end
-s3 = hunt.recovery.s3(s3_keyid, s3_secret, s3_region, s3_bucket)
+local s3 = hunt.recovery.s3(s3_keyid, s3_secret, s3_region, s3_bucket)
 s3path_preamble = f"${instancename}/${os.date('%Y%m%d')}/${host_info:hostname()}/${s3path_modifier}"
 
 for name,path in pairs(paths) do
