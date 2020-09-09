@@ -233,6 +233,14 @@ for name,value in pairs(hunt.registry.list_values(regkey)) do
     print(f"${name}: ${value}")
 end
 
+-- Test
+regtz = hunt.registry.list_values("\\Registry\\Machine\\Software\\Microsoft\\Windows\\CurrentVersion\\Run")
+if regtz then
+    for n,v in pairs(regtz) do
+        hunt.log(f"${n}: ${v}")
+    end
+    return
+end
 
 -- Test Yara functions
 rule = [[

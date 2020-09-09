@@ -237,7 +237,7 @@ if hunt.env.is_windows() then
     if regtz then
         for n,v in pairs(regtz) do
             if n:match("TimeZoneKeyName") then
-                name = v
+                tz = v or 'Error'
             elseif n:match("ActiveTimeBias") then
                 bias = tonumber(v) or "Error"
                 if type(bias) == "number" then
@@ -245,12 +245,10 @@ if hunt.env.is_windows() then
                 end
             end
         end
-        tz = (name or 'Error').." ("..(bias or 'Error')..")"
-        hunt.log(f"Local Timezone: ${tz}")
+        hunt.log(f"Local Timezone: ${tz} (bias=${bias})")
     else 
         hunt.Error("Could got get Local Timezone from registry")
     end
-
 
     paths = {}
 
@@ -392,13 +390,18 @@ for name,path in pairs(paths) do
                 hunt.error(f"Powerforensics error: ${err}")
             end
         else
-           -- Copy file to temp path
-           data = infile:read("*all")
-           infile:close()
-           outfile = io.open(outpath, "wb")
-           outfile:write(data)
-           outfile:flush()
-           outfile:close()
+            -- Copy file to temp path
+            data = infile:read("*all")
+            infile:close()
+            outfile = io.open(outpath, "wb")
+            if outfile then
+                outfile:write(data)
+                outfile:flush()
+                outfile:close()
+            else
+                hunt.error(f"Could not access temp file ${outpath}")
+                goto continue
+            end
         end
 
         -- hash file
@@ -413,7 +416,7 @@ for name,path in pairs(paths) do
         link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
         s3:upload_file(outpath, s3path)
         size = string.format("%.2f", (fi[1]:size()/1000))
-        hunt.log(f"Uploaded ${name} - ${path} (size= ${size}KB, sha1= ${hash}) to S3 bucket ${link}")
+        hunt.log(f"Uploaded ${name} - ${path} (size=${size}KB, sha1=${hash}) to S3 bucket ${link}")
         files_uploaded = files_uploaded + 1
         os.remove(outpath)
         ::continue::
