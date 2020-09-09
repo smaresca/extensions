@@ -371,9 +371,14 @@ if instance == '' then
 elseif instance:match("infocyte") then
     -- get instancename
     instancename = instance:match("(.+).infocyte.com")
+else
+    instancename = instance
 end
-local s3 = hunt.recovery.s3(s3_keyid, s3_secret, s3_region, s3_bucket)
+s3 = hunt.recovery.s3(s3_keyid, s3_secret, s3_region, s3_bucket)
 s3path_preamble = f"${instancename}/${os.date('%Y%m%d')}/${host_info:hostname()}/${s3path_modifier}"
+
+hunt.log("Uploaded evidence can be accessed here:")
+hunt.log(f"https://s3.console.aws.amazon.com/s3/buckets/${s3_bucket}/${s3path_preamble}/?region=${s3_region}&tab=overview")
 
 for name,path in pairs(paths) do
     fi = hunt.fs.ls(path)
