@@ -64,7 +64,7 @@ updated = "2020-07-22"
 --[=[ SECTION 1: Inputs ]=]
 
 path = hunt.arg.string("path") or hunt.global.string("terminateprocess_default_path", true)
-delete_file = hunt.arg.boolean("delete_file") or hunt.global.boolean("terminateprocess_delete_file", false, true)
+delete_file = hunt.arg.boolean("delete_file") or hunt.global.boolean("terminateprocess_delete_file", false, false)
 kill_process = hunt.arg.boolean("kill_process") or hunt.global.boolean("terminateprocess_kill_process", false, true) 
 local debug = hunt.arg.boolean("debug", false, false) 
 
