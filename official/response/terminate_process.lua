@@ -111,7 +111,7 @@ if kill_process then
             else
                 killed = false 
                 hunt.error(f"FAILED: Could not kill ${proc:path()} [pid: ${proc:pid()}]: ${err}")
-                hunt.status.suspicous()
+                hunt.status.suspicious()
             end
         end
     end
