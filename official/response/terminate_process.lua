@@ -29,7 +29,7 @@ updated = "2020-09-10"
     name = "terminateprocess_delete_file"
     description = "deletes the provided path"
     type = "boolean"
-    default = true
+    default = false
 
     [[globals]]
     name = "debug"
@@ -56,7 +56,7 @@ updated = "2020-09-10"
     name = "delete_file"
     description = "deletes the provided path"
     type = "boolean"
-    default = true
+    default = false
 
 ]=]
 
@@ -64,8 +64,8 @@ updated = "2020-09-10"
 --[=[ SECTION 1: Inputs ]=]
 
 path = hunt.arg.string("path") or hunt.global.string("terminateprocess_default_path", true)
-delete_file = hunt.arg.boolean("delete_file") or hunt.global.boolean("terminateprocess_delete_file", false, false)
 kill_process = hunt.arg.boolean("kill_process") or hunt.global.boolean("terminateprocess_kill_process", false, true) 
+delete_file = hunt.arg.boolean("delete_file") or hunt.global.boolean("terminateprocess_delete_file", false, false)
 local debug = hunt.arg.boolean("debug", false, false) 
 
 --[=[ SECTION 2: Functions ]=]
