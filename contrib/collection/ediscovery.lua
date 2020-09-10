@@ -18,7 +18,6 @@ updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables
-# -> hunt.global(name = string, default = <type>, isRequired = boolean) 
 
     [[globals]]
     name = "ediscovery_default_patterns"
@@ -76,7 +75,6 @@ updated = "2020-09-10"
 
 ## ARGUMENTS ##
 # Runtime arguments
-# -> hunt.arg(name = string, default = <type>, isRequired = boolean) 
 
     [[args]]
     name = "patterns"
@@ -94,6 +92,8 @@ updated = "2020-09-10"
 ]=]
 
 --[=[ SECTION 1: Inputs ]=]
+-- hunt.arg(name = <string>, isRequired = <boolean>, [default])
+-- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
 path = hunt.arg.string("path") or hunt.global.string("ediscovery_default_path", false, 'C:/Users/')
 patterns = hunt.arg.string("patterns", false) or hunt.global.string("ediscovery_default_patterns", true)

@@ -12,7 +12,6 @@ updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables
-# -> hunt.global(name = string, default = <type>, isRequired = boolean) 
 
     [[globals]]
     name = "filesystem_scanner_default_regex_bad"
@@ -35,7 +34,6 @@ updated = "2020-09-10"
 
 ## ARGUMENTS ##
 # Runtime arguments
-# -> hunt.arg(name = string, default = <type>, isRequired = boolean) 
 
     [[args]]
     name = "regex_bad"
@@ -63,6 +61,8 @@ updated = "2020-09-10"
 ]=]
 
 --[=[ SECTION 1: Inputs ]=]
+-- hunt.arg(name = <string>, isRequired = <boolean>, [default])
+-- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
 regex_suspicious = hunt.arg.string("regex_suspicious") or hunt.global.string("filesystemscanner_default_regex_suspicious", false, [[readme.*\.txt$]])
 regex_bad = hunt.arg.string("regex_bad") or 

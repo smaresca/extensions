@@ -11,6 +11,8 @@
 ]=]
 
 --[=[ SECTION 1: Inputs ]=]
+-- hunt.arg(name = <string>, isRequired = <boolean>, [default])
+-- hunt.global(name = <string>, isRequired = <boolean>, [default])
 controllers = 4 -- Additional Controllers to install
 
 --[=[ SECTION 2: Functions ]=]

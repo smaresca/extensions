@@ -62,6 +62,8 @@ updated = "2020-09-10"
 
 
 --[=[ SECTION 1: Inputs ]=]
+-- hunt.arg(name = <string>, isRequired = <boolean>, [default])
+-- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
 path = hunt.arg.string("path") or hunt.global.string("terminateprocess_default_path", true)
 kill_process = hunt.arg.boolean("kill_process") or hunt.global.boolean("terminateprocess_kill_process", false, true) 

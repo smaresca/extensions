@@ -15,7 +15,7 @@ updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables
-# -> hunt.global(name = string, default = <type>, isRequired = boolean) 
+# -> hunt.global(name = string, isRequired = boolean, [default]) 
 
     [[globals]]
     name = "s3_keyid"
@@ -61,7 +61,6 @@ updated = "2020-09-10"
 
 ## ARGUMENTS ##
 # Runtime arguments
-# -> hunt.arg(name = string, isRequired = boolean, default = <argType>) 
 
     [[args]]
     name = "MFT"
@@ -122,6 +121,8 @@ updated = "2020-09-10"
 ]=]
 
 --[=[ SECTION 1: Inputs ]=]
+-- hunt.arg(name = <string>, isRequired = <boolean>, [default])
+-- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
 -- Evidence Collection Arguments
 MFT             = hunt.arg.boolean("MFT", false, false) -- this is a big job and requires powershell

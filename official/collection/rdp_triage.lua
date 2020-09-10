@@ -15,7 +15,6 @@ updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables
-# -> hunt.global(name = string, default = <type>, isRequired = boolean) 
 
     [[globals]]
     name = "trailing_days"
@@ -33,7 +32,6 @@ updated = "2020-09-10"
 
 ## ARGUMENTS ##
 # Runtime arguments
-# -> hunt.arg(name = string, default = <type>, isRequired = boolean) 
 
     [[Args]]
     name = "trailing_days"
@@ -45,6 +43,8 @@ updated = "2020-09-10"
 
 
 --[=[ SECTION 1: Inputs ]=]
+-- hunt.arg(name = <string>, isRequired = <boolean>, [default])
+-- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
 trailing_days = hunt.arg.number("trailing_days") or hunt.global.number("trailing_days", false, 60)
 local debug = hunt.global.boolean("debug", false, false)

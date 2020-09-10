@@ -39,6 +39,8 @@ updated = "2020-09-10"
 
 
 --[=[ SECTION 1: Inputs ]=]
+-- hunt.arg(name = <string>, isRequired = <boolean>, [default])
+-- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
 command = hunt.arg.string('command') or hunt.global.string('runcommand_command', true)
 disable_powershell = hunt.global.boolean('disable_powershell', false, false) 

@@ -15,7 +15,6 @@ updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables
-# -> hunt.global(name = string, default = <type>, isRequired = boolean) 
 
     [[globals]]
     name = "s3_keyid"
@@ -54,13 +53,14 @@ updated = "2020-09-10"
 
 ## ARGUMENTS ##
 # Runtime arguments
-# -> hunt.arg(name = string, default = <type>, isRequired = boolean) 
 
     [[args]]
 
 ]=]
 
 --[=[ SECTION 1: Inputs ]=]
+-- hunt.arg(name = <string>, isRequired = <boolean>, [default])
+-- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
 local debug = hunt.global.boolean("debug", false, false)
 proxy = hunt.global.string("proxy", false)

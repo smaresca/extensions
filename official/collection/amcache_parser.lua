@@ -39,13 +39,13 @@ updated = "2020-09-10"
 ]=]
 
 --[=[ SECTION 1: Inputs ]=]
+-- hunt.arg(name = <string>, isRequired = <boolean>, [default])
+-- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
 differential = hunt.arg.boolean("differential", false, true) -- Will save last scan locally and only add new items on subsequent scans.
 
 local debug = hunt.global.boolean("debug", false, false)
 proxy = hunt.global.string("proxy", false)
-
-print(f"differential=${differential}, debug=${debug}, proxy=${proxy}")
 
 url = 'https://infocyte-support.s3.us-east-2.amazonaws.com/extension-utilities/AmcacheParser.exe'
 amcacheparser_sha1 = 'A17EEF27F3EB3F19B15E2C7E557A7B4FB2257485' -- hash validation of amcashparser.exe (version 1.4) at url

@@ -12,7 +12,6 @@ updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables
-# -> hunt.global(name = string, default = <type>, isRequired = boolean) 
 
     [[globals]]
     name = "test"
@@ -43,7 +42,6 @@ updated = "2020-09-10"
 
 ## ARGUMENTS ##
 # Runtime arguments
-# -> hunt.arg(name = string, default = <type>, isRequired = boolean) 
 
     [[args]]
     name = "path"
