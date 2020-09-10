@@ -9,7 +9,7 @@ description = """Example script show format, style, and options for gathering
 author = "Infocyte"
 guid = "f8e44229-4d8d-4909-b148-58130b660077"
 created = "2019-09-19"
-updated = "2020-07-27"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

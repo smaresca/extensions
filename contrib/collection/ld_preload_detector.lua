@@ -9,7 +9,7 @@ description = """Analyzes any references in ld.so.preload (always suspicious
 author = "Infocyte"
 guid = "0153a459-c36b-4542-940e-e4c81ab1eb63"
 created = "2019-12-16"
-updated = "2020-07-29"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

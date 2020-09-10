@@ -16,7 +16,7 @@ description = """Uses winpmem/linpmem to dump full physical memory and
 author = "Infocyte"
 guid = "89abebc6-d0db-4eba-b771-6a2652033581"
 created = "2019-9-19"
-updated = "2020-07-27"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

@@ -11,7 +11,7 @@ description = """RDP Lateral Movement
 author = "Infocyte"
 guid = "f606ff51-4e99-4687-90a7-43aaabae8634"
 created = "2020-03-01"
-updated = "2020-07-20"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

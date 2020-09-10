@@ -10,7 +10,7 @@ description = """Recover custom list of files and folders to your recovery point
 author = "Infocyte"
 guid = "55f3d0f0-476a-44fe-a583-21e110c74541"
 created = "2019-11-23"
-updated = "2020-07-27"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

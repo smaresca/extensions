@@ -11,7 +11,7 @@ description = """Collects event logs, .dat files, etc. from system and forwards
 author = "Infocyte"
 guid = "e07252a1-4aea-47e4-80e8-c7ea8c558aed"
 created = "2019-10-18"
-updated = "2020-07-27"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

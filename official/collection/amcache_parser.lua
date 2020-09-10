@@ -9,7 +9,7 @@ description = """Uses Zimmerman's Amcache parser to parse Amcache and
 author = "Infocyte"
 guid = "09660065-7f58-4d51-9e0b-1427d0e42eb3"
 created = "2019-11-21"
-updated = "2020-07-27"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables accessed within extensions via hunt.global('name')

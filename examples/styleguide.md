@@ -22,7 +22,7 @@ description = """Example script show format, style, and options for commiting
 author = "Infocyte"
 guid = "b5f18032-6749-4bef-80d3-8094dca66798"
 created = "2019-09-19"
-updated = "2020-07-27"
+updated = "2020-09-10"
 
 \#\# GLOBALS ##
 \# Global variables -> hunt.global('name')

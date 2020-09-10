@@ -8,7 +8,7 @@ description = """Diagnose agent cpu usage and health."""
 author = "Infocyte"
 guid = "6bd0be6b-b8e4-4233-a2de-607ae2fdab1a"
 created = "2020-08-13"
-updated = "2020-08-13"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

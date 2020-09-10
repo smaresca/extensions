@@ -8,7 +8,7 @@ description = """Tests Infocyte Extension functions"""
 author = "Infocyte"
 guid = "09dd57ff-2ebd-4e3c-9012-1d593fecf43b"
 created = "2020-01-24"
-updated = "2020-08-24"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

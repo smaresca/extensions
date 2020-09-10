@@ -10,7 +10,7 @@ description = """Deploy PowerForensics and gathers forensic data to Recovery
 author = "Infocyte"
 guid = "0989cd2f-a781-4cea-8f43-fcc3092144a1"
 created = "2019-10-18"
-updated = "2020-07-20"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

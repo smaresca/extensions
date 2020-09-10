@@ -9,7 +9,7 @@ description = """Adds all executable binaries in user appdata folder
 author = "Infocyte"
 guid = "4d5ce2fb-df0f-4186-8116-4957cd405ec8"
 created = "2019-11-21"
-updated = "2020-07-29"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

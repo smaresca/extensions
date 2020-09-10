@@ -8,7 +8,7 @@ description = """Scans system for filenames matching a set of regex patterns (li
 author = "Infocyte"
 guid = "1775f23f-34a6-4f83-91e6-49c48faa66bb"
 created = "2020-04-06"
-updated = "2020-07-27"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

@@ -9,7 +9,7 @@ description = """Scans files on disk with YARA signatures
 author = "Infocyte"
 guid = "f0565351-1dc3-4a94-90b3-34a5765b33bc"
 created = "2019-10-18"
-updated = "2020-07-20"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

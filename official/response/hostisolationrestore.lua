@@ -9,7 +9,7 @@ description = """Reverses the local network isolation of a Windows, Linux, and O
 author = "Infocyte"
 guid = "2896731a-ef52-4569-9669-e9a6d8769e76"
 created = "2019-9-16"
-updated = "2020-07-27"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables

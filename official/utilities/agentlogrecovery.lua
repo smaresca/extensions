@@ -8,7 +8,7 @@ description = """Recover agent and/or controller logs."""
 author = "Infocyte"
 guid = "5eb5d2ef-7409-475c-a821-c7b29b17492f"
 created = "2019-09-19"
-updated = "2020-08-12"
+updated = "2020-09-10"
 
 ## GLOBALS ##
 # Global variables
