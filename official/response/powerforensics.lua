@@ -184,12 +184,18 @@ elseif instance:match("infocyte") then
 end
 recovery = hunt.recovery.s3(s3_keyid, s3_secret, s3_region, s3_bucket)
 s3path_preamble = f"${instancename}/${os.date('%Y%m%d')}/${host_info:hostname()}/${s3path_modifier}"
+
+hunt.log("Uploaded evidence can be accessed here:")
+hunt.log(f"https://s3.console.aws.amazon.com/s3/buckets/${s3_bucket}/${s3path_preamble}/?region=${s3_region}&tab=overview")
+
 s3path = f"${s3path_preamble}/mft.zip"
+link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
+
 size = string.format("%.2f", (file[1]:size()/1000000))
-hunt.debug(f"Uploading gzipped MFT (size= ${size}MB, sha1=${hash}) to S3 bucket ${s3_region}:${s3_bucket}/${s3path}")
 r, err = recovery:upload_file(outpath, s3path)
-if r then 
-    hunt.log("MFT successfully uploaded to S3.")
+if r then
+    hunt.log(f"Uploaded gzipped MFT (size= ${size}MB, sha1=${hash}) to S3 bucket:")
+    hunt.log(link)
     hunt.status.good()
 else 
     hunt.error(f"MFT could not be uploaded to S3: ${err}")

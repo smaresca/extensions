@@ -150,6 +150,8 @@ if use_s3 then
     s3 = hunt.recovery.s3(s3_keyid, s3_secret, s3_region, s3_bucket)
     s3path_preamble = f"${instancename}/${os.date('%Y%m%d')}/${host_info:hostname()}/${s3path_modifier}"
 
+    hunt.log("Uploaded evidence can be accessed here:")
+    hunt.log(f"https://s3.console.aws.amazon.com/s3/buckets/${s3_bucket}/${s3path_preamble}/?region=${s3_region}&tab=overview")
 
     for _, logpath in pairs(logs) do
         for _, p in pairs(hunt.fs.ls(logpath)) do
@@ -163,7 +165,8 @@ if use_s3 then
                 -- Upload to S3
                 success, err = s3:upload_file(path:path(), s3path)
                 if success then
-                    hunt.log(f"Uploaded ${path:path()} to S3 at ${link}")
+                    hunt.log(f"Uploaded ${path:path()} to S3 at:")
+                    hunt.log(link)
                 else
                     hunt.error(f"Error on s3 upload of ${path:path()}: ${err}")
                 end

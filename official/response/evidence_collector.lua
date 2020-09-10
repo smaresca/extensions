@@ -421,7 +421,8 @@ for name,path in pairs(paths) do
         link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
         s3:upload_file(outpath, s3path)
         size = string.format("%.2f", (fi[1]:size()/1000))
-        hunt.log(f"Uploaded ${name} - ${path} (size=${size}KB, sha1=${hash}) to S3 bucket ${link}")
+        hunt.log(f"Uploaded ${name} - ${path} (size=${size}KB, sha1=${hash}) to S3 bucket:")
+        hunt.log(link)
         files_uploaded = files_uploaded + 1
         os.remove(outpath)
         ::continue::

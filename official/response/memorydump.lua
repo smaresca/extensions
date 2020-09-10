@@ -183,6 +183,9 @@ elseif instance:match("infocyte") then
 end
 s3path_preamble = f"${instancename}/${os.date('%Y%m%d')}/${host_info:hostname()}/${s3path_modifier}"
 
+hunt.log("Uploaded evidence can be accessed here:")
+hunt.log(f"https://s3.console.aws.amazon.com/s3/buckets/${s3_bucket}/${s3path_preamble}/?region=${s3_region}&tab=overview")
+
 for _, path in pairs(hunt.fs.ls(tempfolder())) do
     if (path:path()):match("physmem") then
         if hash_image then
@@ -192,7 +195,8 @@ for _, path in pairs(hunt.fs.ls(tempfolder())) do
         end
         s3path = s3path_preamble.."/"..path:name()
         link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
-        hunt.log(f"Scheduling the Upload of Memory Dump ${s3path} (sha1=${hash}) to S3 at ${link}")
+        hunt.log(f"Scheduling the Upload of Memory Dump ${s3path} (sha1=${hash}) to S3 at:")
+        hunt.log(link)
         script = script .. f"recovery:upload_file([[${path:path()}]], '${s3path}')\n"
         script = script .. f"os.remove([[${path:path()}]])\n"
     end

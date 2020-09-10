@@ -184,6 +184,9 @@ end
 s3 = hunt.recovery.s3(s3_keyid, s3_secret, s3_region, s3_bucket)
 s3path_preamble = f"${instancename}/${os.date('%Y%m%d')}/${host_info:hostname()}/${s3path_modifier}"
 
+hunt.log("Uploaded evidence can be accessed here:")
+hunt.log(f"https://s3.console.aws.amazon.com/s3/buckets/${s3_bucket}/${s3path_preamble}/?region=${s3_region}&tab=overview")
+
 files = hunt.fs.ls(tmp)
 for name, p in pairs(files) do 
     path = p
@@ -192,7 +195,8 @@ for name, p in pairs(files) do
     link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
     s3:upload_file(path:path(), s3path)
     size = string.format("%.2f", (path:size()/1000))
-    hunt.log(f"Uploaded ${path:name()} - ${path:path()} (size= ${size}KB, sha1=${hash}) to S3 bucket ${link}")
+    hunt.log(f"Uploaded ${path:name()} - ${path:path()} (size= ${size}KB, sha1=${hash}) to S3 bucket:")
+    hunt.log(link)
     files_uploaded = files_uploaded + 1
     os.remove(outpath)
 end

@@ -181,6 +181,9 @@ s3path_preamble = f"${instancename}/${os.date('%Y%m%d')}/${host_info:hostname()}
 
 paths = string_to_list(path)
 
+hunt.log("Uploaded evidence can be accessed here:")
+hunt.log(f"https://s3.console.aws.amazon.com/s3/buckets/${s3_bucket}/${s3path_preamble}/?region=${s3_region}&tab=overview")
+
 for i, p in pairs(paths) do
     hunt.debug(f"Finding file: ${p}")
     files = hunt.fs.ls(p)
@@ -218,7 +221,8 @@ for i, p in pairs(paths) do
                 -- Upload to S3
                 success, err = s3:upload_file(outpath, s3path)
                 if success then
-                    hunt.log(f"Uploaded ${path:path()} (sha1=${hash}) to S3 at ${link}")
+                    hunt.log(f"Uploaded ${path:path()} (sha1=${hash}) to S3 at:")
+                    hunt.log(link)
                 else
                     hunt.error(f"Error on s3 upload of ${path:path()}: ${err}")
                 end
