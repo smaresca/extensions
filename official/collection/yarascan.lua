@@ -37,6 +37,19 @@ updated = "2020-09-10"
     description = "Additional paths to scan"
     type = "string"
 
+    [[globals]]
+    name = "yarascanner_depth" 
+    description = "Recurse depth for paths"
+    type = "number"
+    default = 3
+
+    [[globals]]
+    name = "yarascanner_fulldisk" 
+    description = "Perform full disk scan (overrides other options except max_size"
+    type = "boolean"
+    default = false
+
+
 ## ARGUMENTS ##
 # Runtime arguments
 
@@ -59,9 +72,15 @@ updated = "2020-09-10"
     default = 5000
 
     [[args]]
-    name = "additional_paths" 
+    name = "additional_paths"
     description = "Additional paths to scan"
     type = "string"
+
+    [[args]]
+    name = "depth" 
+    description = "Recurse depth for paths"
+    type = "number"
+    default = 3
 
 ]=]
 
@@ -70,15 +89,21 @@ updated = "2020-09-10"
 -- hunt.arg(name = <string>, isRequired = <boolean>, [default])
 -- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
-scan_activeprocesses = hunt.arg.boolean("scan_activeprocesses") or hunt.global.boolean("yarascanner_scan_activeprocesses", false, true)
-
-scan_appdata = hunt.arg.boolean("scan_appdata") or hunt.global.boolean("yarascanner_scan_appdata", "boolean", "global", false, false)
-
-max_size = hunt.arg.number("max_size") or hunt.global.number("yarascanner-max_size", false, 5000)
-
-additional_paths = hunt.arg.string("additional_paths", false) or hunt.global.string("yarascanner_additional_paths", false)
+scan_activeprocesses = hunt.arg.boolean("scan_activeprocesses") or
+        hunt.global.boolean("yarascanner_scan_activeprocesses", false, true)
+scan_appdata = hunt.arg.boolean("scan_appdata") or
+        hunt.global.boolean("yarascanner_scan_appdata", "boolean", "global", false, false)
+max_size = hunt.arg.number("max_size") or
+        hunt.global.number("yarascanner-max_size", false, 5000)
+additional_paths = hunt.arg.string("additional_paths", false) or
+        hunt.global.string("yarascanner_additional_paths", false)
+depth = hunt.arg.number("depth", false) or
+        hunt.global.number("yarascanner_depth", false)
+fulldisk = hunt.arg.boolean("fulldisk") or
+        hunt.global.boolean("yarascanner_fulldisk", false, false)
 
 hunt.debug(f"Inputs: scan_activeprocesses=${scan_activeprocesses}, scan_appdata=${scan_appdata}, max_size=${max_size}, additional_paths=${additional_paths}")
+
 
 -- #region bad_rules
 bad_rules = [=[
@@ -1507,7 +1532,7 @@ end
 appdata_opts = {
     "files",
     f"size<${max_size}kb", -- any file below this size
-    "recurse=1" -- depth of 1
+    f"recurse=${depth}" -- depth of 1
 }
 if scan_appdata then
     for _, u in pairs(hunt.fs.ls("C:\\Users", {"dirs"})) do
