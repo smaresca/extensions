@@ -210,10 +210,10 @@ else
 end
 
 -- Parse output using powershell
-script = f"$temp = ${tmppath}\n"
+script = f"$infocytetemp = ${tmppath}\n"
 script = script..[=[
-$outpath = "$temp\amcache.csv"
-Get-ChildItem "$temp\temp" -filter *Amcache*.csv | Foreach-Object { 
+$outpath = "$infocytetemp\amcache.csv"
+Get-ChildItem "$infocytetemp\temp" -filter *Amcache*.csv | Foreach-Object { 
     $a += gc $_.fullname | convertfrom-csv | where { 
         $_.isPeFile -AND $_.sha1 } | select-object sha1,fullpath,filekeylastwritetimestamp -unique 
 }
@@ -224,7 +224,7 @@ $a | Foreach-Object {
 }
 $a = $a | Sort-object FileKeyLastWriteTimestamp,sha1,fullpath -unique -Descending
 $a | Export-CSV $outpath -Delimiter "|" -NoTypeInformation -Force
-Remove-item "$temp\temp" -Force -Recurse
+Remove-item "$infocytetemp\temp" -Force -Recurse
 ]=]
 hunt.debug("Initiatializing Powershell to parse output")
 out, err = hunt.env.run_powershell(script)
