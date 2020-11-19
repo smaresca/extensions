@@ -52,6 +52,41 @@ amcacheparser_sha1 = 'A17EEF27F3EB3F19B15E2C7E557A7B4FB2257485' -- hash validati
 
 --[=[ SECTION 2: Functions ]=]
 
+
+function run_cmd(cmd)    
+    --[=[
+        Runs a command on the default shell and captures output
+        Input:  [string] -- Command
+        Output: [boolean] -- success
+                [string] -- returned message
+    ]=]
+    debug = debug or true
+    if debug or test then hunt.debug("Running command: "..cmd.." 2>&1") end
+    local pipe = io.popen(cmd.." 2>&1", "r")
+    if pipe then
+        local out = pipe:read("*all")
+        pipe:close()
+        if out:find("failed|error|not recognized as an") then
+            hunt.error("[run_cmd] "..out)
+            return false, out
+        else
+            if debug or test then hunt.debug("[run_cmd] "..out) end
+            return true, out
+        end
+    else 
+        hunt.error("ERROR: No Output from pipe running command "..cmd)
+        return false, "ERROR: No output"
+    end
+end
+
+function sleep(sec)
+    if hunt.env.is_windows() then
+        os.execute("ping -n "..(sec+1).." 127.0.0.1 > NUL")
+    else
+        os.execute("ping -c "..(sec+1).." 127.0.0.1 > /dev/null")
+    end
+end
+
 function is_executable(path)
     magicnumbers = {
         "MZ",
@@ -125,7 +160,13 @@ function parse_csv(path, sep)
 end
 
 function make_timestamp(dateString)
-    local pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)%.(%d+)Z"
+    pattern = "(%d+)%-(%d+)%-(%d+)%s(%d+):(%d+):(%d+)"
+    if not dateString:match(pattern) then
+        pattern = "(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)%.(%d+)Z"
+        if not dateString:match(pattern) then
+            return
+        end
+    end
     local xyear, xmonth, xday, xhour, xminute, xseconds, xmseconds = dateString:match(pattern)
     local convertedTimestamp = os.time({year = xyear, month = xmonth, day = xday, hour = xhour, min = xminute, sec = xseconds})
     return convertedTimestamp
@@ -142,13 +183,26 @@ if not hunt.env.is_windows() then
 end
 
 -- define temp paths
-tmppath = os.getenv("systemroot").."\\temp\\ic"
---tmppath = os.getenv("TEMP").."\\ic"
+--tmppath = os.getenv("systemroot").."\\temp\\ic"
+infocytepath = os.getenv("APPDATA").."\\infocyte"
+tmppath = infocytepath.."\\amcacheparser"
 binpath = tmppath.."\\AmcacheParser.exe"
 outpath = tmppath.."\\amcache.csv"
+if not path_exists(infocytepath) then 
+    print(f"Creating directory: ${infocytepath}")
+    s, out = run_cmd(f"mkdir ${infocytepath}")
+    if out:find("cannot|fail") then
+        hunt.error(f"Failed to make infocyte directory:\n${out}")
+        return
+    end
+end
 if not path_exists(tmppath) then 
     print(f"Creating directory: ${tmppath}")
-    os.execute(f"mkdir ${tmppath}")
+    s, out = run_cmd(f"mkdir ${tmppath}")
+    if out:find("cannot|fail") then
+        hunt.error(f"Failed to make temp directory:\n${out}")
+        return
+    end
 end
 
 -- Check if we have amcacheparser.exe already and validate hash
@@ -185,6 +239,9 @@ if differential and path_exists(outpath) then
     csvold = parse_csv(outpath, sep)
     for _,v in pairs(csvold) do
         t = make_timestamp(v["FileKeyLastWriteTimestamp"])
+        if not t then
+            goto continue
+        end
         if not ts then
             ts = t
         elseif ts < t then
@@ -192,30 +249,30 @@ if differential and path_exists(outpath) then
             ts = t
         end 
         oldhashlist[v["SHA1"]] = true
+        ::continue::
     end
     hunt.debug(f"Last AmCache Entry Timestamp from previous scan: ${os.date('%c', ts)}")
 end
 
 -- Execute amcacheparser
 hunt.debug("Executing Amcache Parser...")
-os.execute(f"${binpath} -f C:\\Windows\\AppCompat\\Programs\\Amcache.hve --csv ${tmppath}\\temp > ${tmppath}\\icextensions.log")
-file, msg = io.open(f"${tmppath}\\icextensions.log", "r")
-if file then
-    hunt.debug(file:read("*all"))
-    file:close()
-    os.remove(f"${tmppath}\\icextensions.log")
-else 
-    hunt.error(f"AmcacheParser failed to run: ${msg}")
+local success, out = run_cmd(f"${binpath} -f C:\\Windows\\AppCompat\\Programs\\Amcache.hve --csv ${tmppath}")
+if not success then
+    hunt.error(f"AmcacheParser failed to run:\n${out}")
     return
 end
 
+sleep(3)
+
 -- Parse output using powershell
-script = f"$temp = ${tmppath}\n"
+script = f"$tmppath = '${tmppath}'\n"
 script = script..[=[
-$outpath = "$temp\amcache.csv"
-Get-ChildItem "$temp\temp" -filter *Amcache*.csv | Foreach-Object { 
-    $a += gc $_.fullname | convertfrom-csv | where { 
-        $_.isPeFile -AND $_.sha1 } | select-object sha1,fullpath,filekeylastwritetimestamp -unique 
+$outpath = "$tmppath\amcache.csv"
+Get-ChildItem $tmppath -filter *_Amcache_*.csv | Foreach-Object { 
+    $a += gc $_.fullname | convertfrom-csv |
+        where { $_.isPeFile -AND $_.sha1 } |
+            select-object sha1,fullpath,filekeylastwritetimestamp -unique 
+    remove-item $_.fullname
 }
 $a | Foreach-Object { 
     if ($_.FileKeyLastWriteTimestamp) {
@@ -224,14 +281,12 @@ $a | Foreach-Object {
 }
 $a = $a | Sort-object FileKeyLastWriteTimestamp,sha1,fullpath -unique -Descending
 $a | Export-CSV $outpath -Delimiter "|" -NoTypeInformation -Force
-Remove-item "$temp\temp" -Force -Recurse
 ]=]
 hunt.debug("Initiatializing Powershell to parse output")
+hunt.debug(script)
 out, err = hunt.env.run_powershell(script)
 if out then
-    if debug then
-        hunt.debug(out)
-    end
+    hunt.debug(out)
 else
     hunt.error(f"Failed: Could not parse AmCache output with Powershell.\n${err}")
     return
