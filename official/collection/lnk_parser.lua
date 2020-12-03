@@ -2,7 +2,7 @@
 name: Lnk Parser
 filetype: Infocyte Extension
 type: Collection
-description: Parses .lnk files and adds their target binary to Artifacts
+description: Parses .lnk files within user folders and startup folders and adds their target to Autostarts.
 author: Infocyte
 guid: 7d8a4d8e-fda2-46ca-945b-dae37e4a6100
 created: 2020-12-03
