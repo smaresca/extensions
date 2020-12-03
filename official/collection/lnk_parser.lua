@@ -99,28 +99,24 @@ Function Parse-LnkFile {
         if (Test-Path $Path) {
             $target = $sh.CreateShortcut($Path).TargetPath
             if ($target -AND -NOT (Test-Path $target -PathType Container)) {
-                "$Path, $target"  
+                "$Path|$target"  
             }        
         } 
     }
 }
+
 function Get-LnkFiles ([switch]$Parse, [int]$TrailingDays = 90) {
     $startdate = (Get-date -hour 0 -minute 0 -second 0).AddDays(-$TrailingDays)
     $linkfiles = @()
-    $RecentFilesFolder = "AppData/Roaming/Microsoft/Windows/Recent/"
-    $userfolders = "C:/Users/"
-    $users = Get-ChildItem $userfolders -ea 0 | where { $_.name -ne "Public" } | select name -ExpandProperty name    
-    $users | % {
-        $linkfiles += Get-ChildItem -File -Recurse -Path "$userfolders/$_" -Filter *.lnk -depth 1 -ea 0 | where { $_.LastWriteTimeUtc -gt $startdate }
-        $linkfiles += Get-ChildItem -File -Recurse -Path "$userfolders/$_/AppData/Roaming/Microsoft/Windows/Recent" -Filter *.lnk -ea 0 | where { $_.LastWriteTimeUtc -gt $startdate }
-        $linkfiles += Get-ChildItem -File -Path "c:/programdata/microsoft/windows/start menu/programs/startup" -Filter *.lnk -ea 0 | where { $_.LastWriteTimeUtc -gt $startdate }
-    }
+    $linkfiles += Get-ChildItem -File -Recurse -Path "C:/Users/" -Filter *.lnk -ea 0
+    $linkfiles += Get-ChildItem -File -Recurse -Path "C:/Documents And Settings/" -Filter *.lnk -ea 0
+    $linkfiles += Get-ChildItem -File -Recurse -Path "c:/programdata/microsoft/windows/start menu" -Filter *.lnk -ea 0
 
     Try {
         if ($parse) {
-            $linkfiles | sort lastwritetime | Parse-LnkFile
+            $linkfiles | where { $_.LastWriteTimeUtc -gt $startdate } | Sort-Object FullName -Unique | Sort-Object lastwritetime | Parse-LnkFile
         } else {
-            $linkfiles | sort lastwritetime
+            $linkfiles | where { $_.LastWriteTimeUtc -gt $startdate } | Sort-Object FullName -Unique | Sort-Object lastwritetime
         }
     } catch {}
 }
@@ -129,13 +125,15 @@ $out = Get-LnkFiles -TrailingDays $trailing_days -Parse
 Return $out
 ]=]
 
-hunt.debug(f"Running powershell script:\n${script}")
+--hunt.debug(f"Running powershell script:\n${script}")
 out, err = hunt.env.run_powershell(script)
 if not out then 
     hunt.error(err)
     return
 end
-hunt.verbose(out)
+hunt.log("Searching for .lnk files in: %USER%")
+hunt.log("Searching for .lnk files in: %USER%/AppData/Roaming/microsoft/windows/start menu")
+hunt.log("Searching for .lnk files in: C:/programdata/microsoft/windows/start menu")
 
 paths = {}
 links = {} -- add to keys of list to easily unique paths
@@ -143,21 +141,20 @@ for l in string.gmatch(out, "[^\r\n]+") do -- parse by line
     -- Create Link
     n = false
     link = {}
-    for p in string.gmatch(l, "[^,]+") do -- parse by comma
-        path = string.gsub(p, "%s+", "") -- strip whitespace
+    for p in string.gmatch(l, "[^|]+") do -- parse by comma
         if not n then
-            link["Path"] = path
+            link["Path"] = p
             n = true
         else
-            link["Target"] = path
+            link["Target"] = p
             n = false
         end
     end
 
     if not paths[link['Target']] and path_exists(link["Target"]) then
+        hunt.log(f"LINK[${link['Path']}] = ${link['Target']}")
         if is_executable(link["Target"]) then
             -- Add link if file exists and is an executable
-            hunt.log(f"LINK[${link['Path']}] = ${link['Target']}")
             table.insert(links, link)
             paths[link['Target']] = true
         end
@@ -172,7 +169,7 @@ end
 -- Add targets to Autostarts list for analysis
 n = 0
 for _,link in pairs(links) do
-    print("Adding file: "..link['Target'])
+    -- print("Adding file: "..link['Target'])
 	-- Create a new artifact
     autostart = hunt.survey.autostart()	
     autostart:type("Lnk")
