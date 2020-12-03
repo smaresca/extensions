@@ -97,9 +97,11 @@ Function Parse-LnkFile {
     PROCESS { 
         $Path = Resolve-Path $Path
         if (Test-Path $Path) {
-            $target = $sh.CreateShortcut($Path).TargetPath
-            if ($target -AND -NOT (Test-Path $target -PathType Container)) {
-                "$Path|$target"  
+            $sc = $sh.CreateShortcut($Path)
+            $Target = $sc.TargetPath
+            $Arguments = $sc.Arguments
+            if ($Target -AND -NOT (Test-Path $Target -PathType Container)) {
+                "$Path|$Target|$Arguments"
             }        
         } 
     }
@@ -132,49 +134,56 @@ if not out then
     return
 end
 hunt.log("Searching for .lnk files in: %USER%")
-hunt.log("Searching for .lnk files in: %USER%/AppData/Roaming/microsoft/windows/start menu")
 hunt.log("Searching for .lnk files in: C:/programdata/microsoft/windows/start menu")
 
 paths = {}
 links = {} -- add to keys of list to easily unique paths
 for l in string.gmatch(out, "[^\r\n]+") do -- parse by line
-    -- Create Link
-    n = false
-    link = {}
-    for p in string.gmatch(l, "[^|]+") do -- parse by comma
-        if not n then
-            link["Path"] = p
-            n = true
-        else
-            link["Target"] = p
-            n = false
+    _, count = l:gsub("|","")
+    if count > 2 then 
+        hunt.error(f"Parsing error on: ${l}")
+    else
+        -- Create Link
+        n = 0
+        link = {}
+        for p in string.gmatch(l, "[^|]+") do -- parse by comma
+            if n == 0 then
+                link["Path"] = p
+            elseif n == 1 then
+                link["Target"] = p
+            else 
+                link["Args"] = p
+            end
+            n = n + 1
         end
-    end
 
-    if not paths[link['Target']] and path_exists(link["Target"]) then
-        hunt.log(f"LINK[${link['Path']}] = ${link['Target']}")
-        if is_executable(link["Target"]) then
-            -- Add link if file exists and is an executable
+        if link['Target'] ~= nil and link['Target'] ~= "" and not paths[link['Target']] and path_exists(link["Target"]) then
+            hunt.log(f"LINK[${link['Path']}] = ${link['Target']} ${link['Args']}")
+            if is_executable(link["Target"]) then
+                -- Add link if file exists and is an executable
+                table.insert(links, link)
+                paths[link['Target']] = true
+            end
+        elseif link['Target'] ~= nil and link['Target'] ~= "" and not paths[link['Target']] then
+            -- Add link if file does not exists
+            hunt.log(f"LINK[${link['Path']}] = ${link['Target']} ${link['Args']}")
             table.insert(links, link)
             paths[link['Target']] = true
         end
-    elseif not paths[link['Target']] then
-        -- Add link if file does not exists
-        hunt.log(f"LINK[${link['Path']}] = ${link['Target']}")
-        table.insert(links, link)
-        paths[link['Target']] = true
     end
 end
 
 -- Add targets to Autostarts list for analysis
 n = 0
 for _,link in pairs(links) do
-    -- print("Adding file: "..link['Target'])
+    print("Adding file: "..link['Target'])
 	-- Create a new artifact
     autostart = hunt.survey.autostart()	
     autostart:type("Lnk")
     autostart:exe(link['Target'])
-    -- autostart:params()
+    if link['Args'] ~= nil and link['Args'] ~= "" then
+        autostart:params(link["Args"])
+    end
     autostart:location(link['Path'])
     hunt.survey.add(autostart)
     n = n + 1
