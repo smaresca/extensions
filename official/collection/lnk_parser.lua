@@ -94,11 +94,16 @@ Function Parse-LnkFile {
     BEGIN { 
         $sh = New-Object -ComObject WScript.Shell
     }
-    PROCESS { 
+    PROCESS {
         $Path = Resolve-Path $Path
         if (Test-Path $Path) {
             $sc = $sh.CreateShortcut($Path)
-            $Target = $sc.TargetPath
+            if ($sc.TargetPath -match "\\\.\." -AND $sc.WorkingDirectory -ne $null) {
+                Set-Location $sc.WorkingDirectory
+                $Target = Resolve-Path $sc.TargetPath | Select Path -Expandproperty Path
+            } else {
+                $Target = $sc.TargetPath
+            }
             $Arguments = $sc.Arguments
             if ($Target -AND -NOT (Test-Path $Target -PathType Container)) {
                 "$Path|$Target|$Arguments"
