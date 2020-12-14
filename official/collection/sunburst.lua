@@ -10,7 +10,7 @@ description: |
     which are used to steal credentials and pivot through the network.
     Beacons and other memory-only footholds will be found natively with 
     Infocyte's memory scans (you will see memory injects in common Windows processes)
-    Kerberosting (golden tickets) is also used but you will need to look for 
+    Kerberosting (golden tickets) is also used but you will need to review eventId 4769 for suspicious behavior
     https://cyber.dhs.gov/ed/21-01/
     https://www.fireeye.com/blog/threat-research/2020/12/evasive-attacker-leverages-solarwinds-supply-chain-compromises-with-sunburst-backdoor.html
 author: Infocyte
@@ -47,8 +47,7 @@ primary_paths = {
 }
 
 dllnames = {
-    "SolarWinds.Orion.Core.BusinessLayer.dll",
-    "wow64win.dll"
+    "SolarWinds.Orion.Core.BusinessLayer.dll"
 }
 
 hunt.debug(f"Inputs: max_size=${max_size}; additional_paths=${additional_paths}")
@@ -299,6 +298,7 @@ opts = {
 -- Add active processes
 paths = {} -- add to keys of list to easily unique paths
 if scan_activeprocesses then
+    hunt.log("Scanning active processes")
     procs = hunt.process.list()
     for i, p in pairs(procs) do
         proc = p
@@ -311,6 +311,7 @@ if scan_activeprocesses then
 end
 
 if scan_userfolders then
+    hunt.log("Scanning user folders")
     -- Add user paths
     appdata_opts = {
         "files",
@@ -328,6 +329,7 @@ end
 
 -- Add primary paths
 if primary_paths then
+    hunt.log("Scanning reported indicator of compromise paths")
     if type(primary_paths) == "table" then
         more_paths = primary_paths
     else
@@ -344,6 +346,7 @@ end
 
 -- Add additional paths
 if additional_paths then
+    hunt.log("Scanning additional user provided paths")
     if type(additional_paths) == "table" then
         more_paths = additional_paths
     else
@@ -452,4 +455,4 @@ else
     hunt.status.good()
 end
 
-hunt.log(f"Scan completed. Result=${result} Added ${n} paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
+hunt.log(f"Scan completed. Result=${result} Added ${n} paths (all bad and suspicious matches) to Artifacts for additional processing and retrieval.")
