@@ -33,6 +33,8 @@ updated = "2020-09-10"
 
 whitelisted_ips = hunt.global.string("whitelisted_ips", false)
 
+local test = false
+
 -- Infocyte specific IPs DO NOT CHANGE or you will lose connectivity with Infocyte 
 infocyte_ips = {
 	"3.221.153.58",
@@ -117,7 +119,7 @@ end
 --[=[ SECTION 3: Actions ]=]
 
 host_info = hunt.env.host_info()
-hunt.debug(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
+hunt.info(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
 osversion = host_info:os()
 
 -- TO DO: Check for Agent and install if not present
@@ -140,7 +142,7 @@ elseif hunt.env.is_windows() then
 	pipe = io.popen("netsh advfirewall show all state")
 	out = pipe:read("*a")
 	if out:find("State%s+ON") then
-		hunt.debug("Windows Firewall is ON")
+		hunt.info("Windows Firewall is ON")
 	else
 		hunt.warn("Windows Firewall is NOT enabled. Will attempt to enable it but this could conflict with other firewall software")
 		disabled = true
@@ -148,7 +150,7 @@ elseif hunt.env.is_windows() then
 
 	os.execute(f"netsh advfirewall export ${backup_location}")
 	
-	if debug then 
+	if test then 
 		hunt.log("Debugging: skipping changes to firewall")
 		hunt.summary("DEBUG: Isolation Aborted")
 		return nil
@@ -187,7 +189,7 @@ elseif  hunt.env.has_sh() then
 	output = assert(handle:read('*a'))
 	handle:close()
 
-	if debug then 
+	if test then 
 		hunt.log("Debugging: skipping changes to firewall")
 		hunt.summary("DEBUG: Isolation Aborted")
 		return nil
@@ -212,7 +214,7 @@ elseif  hunt.env.has_sh() then
 	end
 
   	if whitelisted_ips == nil then
-    	hunt.debug("User Defined IPs are empty")
+    	hunt.info("User Defined IPs not provided")
 	  else
 		hunt.log(f"Allowing User Defined IPs: ${whitelisted_ips}")
 	  	for _, ip in pairs(string_to_list(whitelisted_ips)) do
