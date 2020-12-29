@@ -2,17 +2,18 @@
 name: Lnk Parser
 filetype: Infocyte Extension
 type: Collection
-description: Parses .lnk files within user folders and startup folders and adds their target to Autostarts.
+description: | 
+    Parses .lnk files within user folders and startup folders and adds their target to Autostarts.
 author: Infocyte
 guid: 7d8a4d8e-fda2-46ca-945b-dae37e4a6100
 created: 2020-12-03
-updated: 2020-12-03
+updated: 2020-12-14
 
 # Global variables
 globals:
-  - name: trailing_days
-    description: Number of days to go back in the logs
+- trailing_days:
     type: number
+    description: Number of days to go back in the logs
     default: 90
     required: false
 
@@ -42,7 +43,7 @@ function is_executable(path)
     }
     local f,msg = io.open(path, "rb")
     if not f then
-        hunt.debug(msg)
+        hunt.log(msg)
         return nil
     end
     local bytes = f:read(4)
@@ -82,7 +83,7 @@ end
 --[=[ SECTION 3: Collection ]=]
 
 host_info = hunt.env.host_info()
-hunt.debug(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
+hunt.log(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
 script = f"$trailing_days=${trailing_days}\n"
 script = script..[=[
 Function Parse-LnkFile {
@@ -132,7 +133,7 @@ $out = Get-LnkFiles -TrailingDays $trailing_days -Parse
 Return $out
 ]=]
 
---hunt.debug(f"Running powershell script:\n${script}")
+--hunt.log(f"Running powershell script:\n${script}")
 out, err = hunt.env.run_powershell(script)
 if not out then 
     hunt.error(err)
@@ -181,9 +182,9 @@ end
 -- Add targets to Autostarts list for analysis
 n = 0
 for _,link in pairs(links) do
-    print("Adding file: "..link['Target'])
+    --print("Adding file: "..link['Target'])
 	-- Create a new artifact
-    autostart = hunt.survey.autostart()	
+    autostart = hunt.survey.autostart()
     autostart:type("Lnk")
     autostart:exe(link['Target'])
     if link['Args'] ~= nil and link['Args'] ~= "" then
