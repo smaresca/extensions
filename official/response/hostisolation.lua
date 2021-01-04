@@ -165,12 +165,13 @@ elseif hunt.env.is_windows() then
 	    hunt.log("System is already isolated.")
 	    return
 	end
-	pipe = io.popen("netsh advfirewall show all state")
+	pipe = io.popen("netsh advfirewall show currentprofile state")
 	out = pipe:read("*a")
 	if out:find("State%s+ON") then
 		hunt.log("Windows Firewall is ON")
 	else
 		hunt.warn("Windows Firewall is NOT enabled. Will attempt to enable it but this could conflict with other firewall software")
+		hunt.log(f"${out}")
 		disabled = true
 	end
 
@@ -240,7 +241,7 @@ elseif  hunt.env.has_sh() then
 	end
 
   	if whitelisted_ips == nil then
-    	hunt.log("User Defined IPs are empty")
+    	hunt.log("User Defined IPs not provided")
 	  else
 		hunt.log(f"Allowing User Defined IPs: ${whitelisted_ips}")
 	  	for _, ip in pairs(string_to_list(whitelisted_ips)) do
