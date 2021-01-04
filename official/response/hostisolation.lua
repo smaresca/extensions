@@ -191,11 +191,9 @@ elseif hunt.env.is_windows() then
 	if whitelisted_ips ~= nil and whitelisted_ips ~= '' then
 		success, out = run_cmd(f"netsh advfirewall firewall add rule name=\"Infocyte Host Isolation (custom)\" dir=out action=allow protocol=ANY remoteip=\"${whitelisted_ips}\"")
 	end
-
-	if disabled then 
-		hunt.log("Enabling Windows Firewall")
-		success, out = run_cmd("Netsh advfirewall set currentprofile state on")
-	end
+ 
+	hunt.log("Enabling Windows Firewall")
+	success, out = run_cmd("Netsh advfirewall set currentprofile state on")
 elseif hunt.env.is_macos() then
 	-- TODO: ipfw (old) or pf (10.6+)
 
