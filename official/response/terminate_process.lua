@@ -56,12 +56,15 @@ args:
 
 path =  hunt.arg.string("path") or
         hunt.global.string("terminateprocess_default_path", true)
+
 kill_process =  hunt.arg.boolean("kill_process") or
                 hunt.global.boolean("terminateprocess_kill_process", false, true) 
+
 delete_file =   hunt.arg.boolean("delete_file") or
                 hunt.global.boolean("terminateprocess_delete_file", false, false)
+
 local verbose = hunt.global.boolean("verbose", false, false)
-local test = hunt.global.boolean("test", false, true)
+local test = hunt.global.boolean("test", false, false)
 
 --[=[ SECTION 2: Functions ]=]
 
