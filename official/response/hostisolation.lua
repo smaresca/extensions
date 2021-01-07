@@ -165,9 +165,8 @@ elseif hunt.env.is_windows() then
 	    hunt.log("System is already isolated.")
 	    return
 	end
-	pipe = io.popen("netsh advfirewall show currentprofile state")
-	out = pipe:read("*a")
-	if out:find("State%s+ON") then
+	success, out = run_cmd("netsh advfirewall show currentprofile state")
+	if success and out:find("State%s+ON") then
 		hunt.log("Windows Firewall is ON")
 	else
 		hunt.warn("Windows Firewall is NOT enabled. Will attempt to enable it but this could conflict with other firewall software")
