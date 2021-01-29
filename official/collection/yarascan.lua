@@ -81,34 +81,12 @@ hunt.log(f"Inputs: scan_activeprocesses=${scan_activeprocesses}, scan_appdata=${
 
 -- #region memory_rules
 memory_rules = [=[
-rule embedded_url {
-    meta:
-        author = "Antonio S. <asanchez@plutec.net>"
-    strings:
-        $url_regex = /https?:\/\/([\w\.-]+)([\/\w \.-]*)/ wide ascii
-    condition:
-        $url_regex
-}
+
 ]=]
 -- #endregion
 
 -- #region bad_rules
 bad_rules = [=[
-rule Base64d_PE
-{
-    meta:
-        description = "Contains a base64-encoded executable"
-        author = "Florian Roth"
-        date = "2017-04-21"
-
-    strings:
-        $s0 = "TVqQAAIAAAAEAA8A//8AALgAAAA" wide ascii
-        $s1 = "TVqQAAMAAAAEAAAA//8AALgAAAA" wide ascii
-
-    condition:
-        any of them
-}
-
 rule APT_KimSuky_bckdr_dll {
 
    meta:
