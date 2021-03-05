@@ -226,7 +226,9 @@ opts = {
 
 hunt.log("Scanning aspx scripts within wwwroot with yara")
 for _, path in pairs(hunt.fs.ls("C:\\inetpub\\wwwroot\\aspnet_client", opts)) do
-    if get_fileextension(path:path()) == "aspx" then
+    if get_fileextension(path:path()) == ".aspx" then
+        p = path:path()
+        hunt.log(f"Found .aspx file: ${p}")
         table.insert(paths, path:path())
     end
 end
@@ -249,7 +251,6 @@ match, matches = yara_scan(paths, rules)
 if match then
     hunt.log("Found matches!")
     level = 1
-    all_matches = table.concat(all_matches,matches)
     for _, m in pairs(matches) do
         hunt.log(f"Matched yara rule [${levels[level]}]${m['signature']} on: ${m['path']} <${m['hash']}>")
     end
@@ -260,7 +261,7 @@ end
 
 -- Add bad and suspicious files to Artifacts list for analysis
 n = 0
-for path,i in pairs(all_matches) do
+for path,i in pairs(matches) do
     if test and n > 3 then
         break
     end
@@ -347,3 +348,4 @@ else
 end
 
 hunt.log(f"Yara scan completed. Result=${result}. Added ${n} paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
+hunt.log("NOTE: If powershell is disabled, the results for log pulls will be blank. If the paths or logs are not there, it will print a messy powershell error, this is expected.")
