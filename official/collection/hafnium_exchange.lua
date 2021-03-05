@@ -4,6 +4,8 @@ filetype: Infocyte Extension
 type: Collection
 description: | 
     Checks for indicators of compromise related to the March 2021 Exchange Vulns and the Threat Group Hafnium.
+    This will use webshell and china chopper webshell yara signatures to scan the wwwroot folder.
+    In addition, it will also grab relevant logs that Microsoft recommends you review using Powershell commands provided by Microsoft.
     Beacons and other memory-only footholds will be found natively with Infocyte's memory scans (you will see memory injects in common Windows processes)
     https://www.volexity.com/blog/2021/03/02/active-exploitation-of-microsoft-exchange-zero-day-vulnerabilities/
     https://threatpost.com/microsoft-exchange-zero-day-attackers-spy/164438/
@@ -93,6 +95,19 @@ rule webshell_aspx_sportsball : Webshell
         all of ($var*)
 }
 
+rule ChinaChopper_Generic {
+	meta:
+		description = "China Chopper Webshells - PHP and ASPX"
+		license = "https://creativecommons.org/licenses/by-nc/4.0/"
+		author = "Florian Roth"
+		reference = "https://www.fireeye.com/content/dam/legacy/resources/pdfs/fireeye-china-chopper-report.pdf"
+		date = "2015/03/10"
+	strings:
+		$aspx = /%@\sPage\sLanguage=.Jscript.%><%eval\(Request\.Item\[.{,100}unsafe/
+		$php = /<?php.\@eval\(\$_POST./
+	condition:
+		1 of them
+}
 ]=]
 
 --[=[ SECTION 2: Functions ]=]
