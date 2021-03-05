@@ -220,7 +220,7 @@ paths = {}
 opts = {
     "files",
     f"size<=${max_size}kb", -- any file below this size
-    "recurse=2" -- depth of 1
+    "recurse=3" -- depth of 1
 }
 
 
@@ -239,7 +239,12 @@ levels[1] = "BAD"
 levels[2] = "SUSPICIOUS"
 levels[3] = "INFO"
 
-hunt.log(f"Scanning ${#paths} paths with yara rules")
+if #paths > 0 then 
+    hunt.log(f"Found ${#paths} aspx files within C:\\inetpub\\wwwroot\\aspnet_client\\* -- scanning with yara rules")
+else
+    hunt.log(f"Found ${#paths} aspx files within C:\\inetpub\\wwwroot\\aspnet_client\\* (recursion three levels deep) -- skipping scanning")
+end
+
 match, matches = yara_scan(paths, rules) 
 if match then
     hunt.log("Found matches!")
