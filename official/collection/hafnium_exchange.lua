@@ -16,6 +16,15 @@ updated: 2021-03-06
 
 # Global variables
 globals:
+- hafnium_all:
+    description: Attempts to grab winevents which can cause performance issues and timeouts to be hit
+    type: boolean
+    default: false
+
+- wwwrootpath:
+    description: wwwroot path
+    type: string
+    default: C:\\inetpub\\wwwroot
 
 # Runtime arguments
 args:
@@ -27,7 +36,8 @@ args:
 -- hunt.arg(name = <string>, isRequired = <boolean>, [default])
 -- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
-wwwrootpath = "C:\\inetpub\\wwwroot"
+hafnium_all = hunt.global.boolean("hafnium_all", false, false)
+wwwrootpath = hunt.global.boolean("wwwrootpath", false, "C:\\inetpub\\wwwroot")
 
 rules = [=[
 rule webshell_aspx_simpleseesharp : Webshell Unclassified
@@ -341,7 +351,7 @@ end
 --[=[ SECTION 3: Collection ]=]
 
 host_info = hunt.env.host_info()
-hunt.debug(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
+hunt.log(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
 
 -- Get Exchange Install Path
 hunt.log("Getting Exchange Install Path...")
@@ -436,6 +446,10 @@ for path,i in pairs(matches) do
 end
 
 hunt.log("CVE-2021-26855: Grabbing relevant Exchange HttpProxy logs via Powershell")
+hunt.log([=[-- CVE-2021-26855 exploitation can be detected via the following Exchange HttpProxy logs:
+-- These logs are located in the following directory: %PROGRAMFILES%\Microsoft\Exchange Server\V15\Logging\HttpProxy
+-- Exploitation can be identified by searching for log entries where the AuthenticatedUser is empty and the AnchorMailbox contains the pattern of ServerInfo~*/*
+-------------------------------------------------------------------]=])
 out, err = hunt.env.run_powershell([[
     $exchangePath = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v15\Setup -ea 0).MsiInstallPath
     if ($null -eq $exchangePath) {
@@ -462,10 +476,6 @@ if err ~= nil and err ~= "" then
     hunt.error(err)
 end
 if out then
-    hunt.log([=[-- CVE-2021-26855 exploitation can be detected via the following Exchange HttpProxy logs:
-    -- These logs are located in the following directory: %PROGRAMFILES%\Microsoft\Exchange Server\V15\Logging\HttpProxy
-    -- Exploitation can be identified by searching for log entries where the AuthenticatedUser is empty and the AnchorMailbox contains the pattern of ServerInfo~*/*
-    -------------------------------------------------------------------]=])
     if out == nil or out == "" then
         hunt.log("Nothing suspicious detected.") 
     else
@@ -474,6 +484,14 @@ if out then
 end
 
 hunt.log("CVE-2021-26858: Grabbing relevant Exchange log files via Powershell")
+hunt.log([=[-- If activity is detected, the logs specific to the application specified in the AnchorMailbox path can be used to help determine what actions were taken.
+-- These logs are located in the %PROGRAMFILES%\Microsoft\Exchange Server\V15\Logging directory.
+
+-- CVE-2021-26858 exploitation can be detected via the Exchange log files:
+-- C:\Program Files\Microsoft\Exchange Server\V15\Logging\OABGeneratorLog
+-- Files should only be downloaded to the %PROGRAMFILES%\Microsoft\Exchange Server\V15\ClientAccess\OAB\Temp directory
+-- In case of exploitation, files are downloaded to other directories (UNC or local paths)
+-------------------------------------------------------------------]=])
 out, err = hunt.env.run_powershell([[
     $exchangePath = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v15\Setup -ea 0).MsiInstallPath
     if ($null -eq $exchangePath) {
@@ -490,14 +508,6 @@ if err ~= nil and err ~= "" then
     hunt.error(err)
 end
 if out then
-    hunt.log([=[-- If activity is detected, the logs specific to the application specified in the AnchorMailbox path can be used to help determine what actions were taken.
-    -- These logs are located in the %PROGRAMFILES%\Microsoft\Exchange Server\V15\Logging directory.
-
-    -- CVE-2021-26858 exploitation can be detected via the Exchange log files:
-    -- C:\Program Files\Microsoft\Exchange Server\V15\Logging\OABGeneratorLog
-    -- Files should only be downloaded to the %PROGRAMFILES%\Microsoft\Exchange Server\V15\ClientAccess\OAB\Temp directory
-    -- In case of exploitation, files are downloaded to other directories (UNC or local paths)
-    -------------------------------------------------------------------]=])
     if out == nil or out == "" then
         hunt.log("Nothing suspicious detected.") 
     else
@@ -505,37 +515,43 @@ if out then
     end
 end
 
-    
-hunt.log("CVE-2021-26857: Grabbing relevant Windows Application event logs via Powershell")
-out, err = hunt.env.run_powershell([[
-    try { 
-        Get-WinEvent -FilterHashtable @{
-            LogName      = 'Application'
-            ProviderName = 'MSExchange Unified Messaging'
-            Level        = '2'
-        } -ea stop | Where-Object Message -Like "*System.InvalidCastException*"
-    }
-    catch { $_.Exception.Message }
-]])
-if err ~= nil and err ~= "" then  
-    hunt.error(err)
-end
-if out then
-    hunt.log([=[-- CVE-2021-26857 exploitation can be detected via the Windows Application event logs
-    -- Exploitation of this deserialization bug will create Application events with the following properties:
-    -- Source: MSExchange Unified Messaging
-    -- EntryType: Error
-    -- Event Message Contains: System.InvalidCastException
-    -------------------------------------------------------------------]=])
-    if out == nil or out == "" then
-        hunt.log("Nothing suspicious detected.") 
-    else
-        hunt.log(out)
+hunt.log([=[-- CVE-2021-26857 exploitation can be detected via the Windows Application event logs
+        -- Exploitation of this deserialization bug will create Application events with the following properties:
+        -- Source: MSExchange Unified Messaging
+        -- EntryType: Error
+        -- Event Message Contains: System.InvalidCastException
+        -------------------------------------------------------------------]=])
+if not hafnium_all then
+    hunt.warn("Skipping MSExchange Unified Messaging event log pull. This command has performance issues and will likely hit timeouts. If you want to attempt it, create a global boolean variable called 'hafnium_all' and set it to true.")
+else 
+    hunt.log("CVE-2021-26857: Grabbing MSExchange Unified Messaging event logs via Powershell")
+    out, err = hunt.env.run_powershell([[
+        try { 
+            Get-WinEvent -FilterHashtable @{
+                LogName      = 'Application'
+                ProviderName = 'MSExchange Unified Messaging'
+                Level        = '2'
+            } -ea stop | Where-Object Message -Like "*System.InvalidCastException*"
+        }
+        catch { $_.Exception.Message }
+    ]])
+    if err ~= nil and err ~= "" then  
+        hunt.error(err)
+    end
+    if out then
+        if out == nil or out == "" then
+            hunt.log("Nothing suspicious detected.") 
+        else
+            hunt.log(out)
+        end
     end
 end
-
 
 hunt.log([=[CVE-2021-27065: Grabbing relevant logs (V15\Logging\ECP\Server) via Powershell]=])
+hunt.log([=[-- CVE-2021-27065 exploitation can be detected via the following Exchange log files:
+-- C:\Program Files\Microsoft\Exchange Server\V15\Logging\ECP\Server
+-- All Set-<AppName>VirtualDirectory properties should never contain script. InternalUrl and ExternalUrl should only be valid Uris.
+-------------------------------------------------------------------]=])
 out, err = hunt.env.run_powershell([[
     $exchangePath = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v15\Setup -ea 0).MsiInstallPath
     if ($null -eq $exchangePath) {
@@ -552,10 +568,6 @@ if err ~= nil and err ~= "" then
     hunt.error(err)
 end
 if out then
-    hunt.log([=[-- CVE-2021-27065 exploitation can be detected via the following Exchange log files:
-    -- C:\Program Files\Microsoft\Exchange Server\V15\Logging\ECP\Server
-    -- All Set-<AppName>VirtualDirectory properties should never contain script. InternalUrl and ExternalUrl should only be valid Uris.
-    -------------------------------------------------------------------]=])
     if out == nil or out == "" then
         hunt.log("Nothing suspicious detected.") 
     else
