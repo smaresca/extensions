@@ -373,9 +373,9 @@ end
 
 -- Get default Web Site wwwroot folder
 out, err = hunt.env.run_powershell([[
-    try {
-        Get-ItemProperty HKLM:\Software\Microsoft\INetStp -Name "PathWWWRoot" -ea stop }
-        catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message }
+try {
+    Get-ItemProperty HKLM:\Software\Microsoft\INetStp -Name "PathWWWRoot" -ea stop }
+    catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message }
 ]])
 if err ~= "" then 
     hunt.error(err)
@@ -400,23 +400,23 @@ opts = {
     "recurse=3" -- depth of 1
 }
 -- wwwrootpath = "C:\\inetpub\\wwwroot"
-for _, path in pairs(hunt.fs.ls(f"${wwwrootpath}\\aspnet_client", opts)) do
+for _, path in pairs(hunt.fs.ls(f"${wwwrootpath}\\aspnet_client", f"${exchange_path}\\Frontend", opts)) do
     if get_fileextension(path:name()) == ".aspx" then
         p = path:path()
-        if string.len(get_filename(path:name()) or "") == 8 then
-            level = 2
-            hunt.warn("WARNING: .aspx file found with 8 characters (commonly used by HAFNIUM exploits but not by itself malicious)")
-        end
+        fn = get_filename(path:name()) or ""
         hunt.log(f"Found .aspx file: ${p}")
+        if string.len(fn) == 13 then
+            level = 2
+            hunt.warn(f"WARNING: aspx file '${fn}' file found with 8 characters (commonly used by HAFNIUM exploits but not by itself malicious)")
+        end
         table.insert(paths, path:path())
     end
-    
 end
 
 if #paths > 0 then 
-    hunt.log(f"Found ${#paths} .aspx files within C:\\inetpub\\wwwroot\\aspnet_client\\* -- scanning with yara rules")
+    hunt.log(f"Found ${#paths} .aspx files -- scanning for webshells")
 else
-    hunt.log(f"Could not find .aspx files within C:\\inetpub\\wwwroot\\aspnet_client\\* (recursion three levels deep) -- skipping yara scanning")
+    hunt.log(f"Could not find .aspx files within '${wwwrootpath}\\aspnet_client\\*' or '${exchange_path}\\Frontend\\*' (recursion three levels deep) -- skipping scanning")
 end
 
 match, matches = yara_scan(paths, rules) 
