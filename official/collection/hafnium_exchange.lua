@@ -374,15 +374,16 @@ end
 -- Get default Web Site wwwroot folder
 out, err = hunt.env.run_powershell([[
 try {
-    Get-ItemProperty HKLM:\Software\Microsoft\INetStp -Name "PathWWWRoot" -ea stop }
-    catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message }
+    (Get-ItemProperty HKLM:\Software\Microsoft\INetStp -Name "PathWWWRoot" -ea stop).PathWWWRoot} 
+}
+catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message }
 ]])
 if err ~= "" then 
     hunt.error(err)
 else
     hunt.log(f"Default Web Site wwwroot folder: ${out}")
     -- Need to test this more, not working all the time.
-    -- wwwrootpath = out
+    wwwrootpath = out
 end
 
 paths = {}
@@ -394,7 +395,7 @@ levels[2] = "SUSPICIOUS"
 levels[3] = "INFO"
 
 
-hunt.log("Scanning aspx scripts within wwwroot with yara")
+hunt.log("Scanning aspx files within wwwroot & exchange frontend folders for webshells")
 opts = {
     "files",
     "recurse=3" -- depth of 1
