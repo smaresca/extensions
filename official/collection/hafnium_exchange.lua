@@ -374,16 +374,19 @@ end
 -- Get default Web Site wwwroot folder
 out, err = hunt.env.run_powershell([[
 try {
-    (Get-ItemProperty HKLM:\Software\Microsoft\INetStp -Name "PathWWWRoot" -ea stop).PathWWWRoot} 
+    (Get-ItemProperty HKLM:\Software\Microsoft\INetStp -Name "PathWWWRoot" -ea stop).PathWWWRoot 
 }
 catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message }
 ]])
 if err ~= "" then 
     hunt.error(err)
 else
+    -- If it can't find it, it'll stay with the default
+    if not string.find(out, "Cannot find path") then
+        -- Need to test this more, not working all the time.
+        wwwrootpath = out
+    end
     hunt.log(f"Default Web Site wwwroot folder: ${out}")
-    -- Need to test this more, not working all the time.
-    wwwrootpath = out
 end
 
 paths = {}
