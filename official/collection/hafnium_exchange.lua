@@ -386,7 +386,7 @@ else
         -- Need to test this more, not working all the time.
         wwwrootpath = out
     end
-    hunt.log(f"Default Web Site wwwroot folder: ${out}")
+    hunt.log(f"Default Web Site wwwroot folder: ${wwwrootpath}")
 end
 
 paths = {}
