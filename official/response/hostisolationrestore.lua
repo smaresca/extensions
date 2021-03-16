@@ -75,6 +75,18 @@ end
 host_info = hunt.env.host_info()
 hunt.log(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
 osversion = host_info:os()
+
+-- Test
+client = hunt.web.new("https://www.google.com/favicon.ico")
+data, err = client:download_data()
+if not data then
+    hunt.log(f"System is isolated. Restoring...")
+    hunt.log(f"Error=${err}")
+else
+    hunt.error(f"System is not isolated. Was able to communicate with www.google.com via HTTPS/443")
+    success, out = run_cmd("Netsh advfirewall show allprofiles")
+end
+
 if string.find(osversion, "windows xp") then
 	-- TO DO: XP's netsh firewall
 
@@ -104,4 +116,15 @@ elseif  hunt.env.has_sh() then
 	end
 end
 
-hunt.summary("Firewall Restored from Backup")
+client = hunt.web.new("https://www.google.com/favicon.ico")
+data, err = client:download_data()
+if not data then
+    hunt.error(f"Possible Error. System is still unable to communicate out. Error=${err}")
+    hunt.status.unknown()
+    hunt.summary("Restoral Failure")
+else
+    hunt.log(f"SUCCESS: System was able to communicate with www.google.com via HTTPS/443")
+    hunt.status.good()
+    hunt.summary("Restored from Backup")
+end
+

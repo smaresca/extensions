@@ -156,6 +156,15 @@ end
 
 disabled = false
 
+client = hunt.web.new("https://www.google.com/favicon.ico")
+data, err = client:download_data()
+if not data then
+    hunt.error(f"System is unable to communicate out. Error=${err}")
+    return
+else
+    hunt.log(f"Pre-Isolation Test: System was able to communicate with www.google.com via HTTPS/443")
+end
+
 if string.find(osversion, "windows xp") then
 	-- TODO: XP's netsh
 
@@ -193,7 +202,8 @@ elseif hunt.env.is_windows() then
 	end
  
 	hunt.log("Enabling Windows Firewall")
-	success, out = run_cmd("Netsh advfirewall set currentprofile state on")
+	success, out = run_cmd("Netsh advfirewall set allprofiles state on")
+    success, out = run_cmd("Netsh advfirewall show allprofiles state")    
 elseif hunt.env.is_macos() then
 	-- TODO: ipfw (old) or pf (10.6+)
 
@@ -252,5 +262,19 @@ elseif  hunt.env.has_sh() then
 	success, out = run_cmd("iptables -P INPUT DROP")
 end
 
-hunt.status.good()
-hunt.summary("System Isolated")
+-- Test
+client = hunt.web.new("https://www.google.com/favicon.ico")
+data, err = client:download_data()
+if not data then
+    hunt.log(f"System is isolated successfully.")
+    hunt.debug(f"Error=${err}")
+    hunt.status.good()
+    hunt.summary("System Isolated")
+else
+    hunt.error(f"FAILURE: System was able to communicate with www.google.com via HTTPS/443")
+    success, out = run_cmd("Netsh advfirewall show allprofiles")
+    hunt.status.bad()
+    Hunt.summary("FAILED to Isolated")
+end
+
+
