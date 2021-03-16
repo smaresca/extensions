@@ -274,7 +274,7 @@ else
     hunt.error(f"FAILURE: System was able to communicate with www.google.com via HTTPS/443")
     success, out = run_cmd("Netsh advfirewall show allprofiles")
     hunt.status.bad()
-    Hunt.summary("FAILED to Isolated")
+    Hunt.summary("FAILED to Isolate")
 end
 
 
