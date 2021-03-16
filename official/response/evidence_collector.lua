@@ -405,11 +405,17 @@ for name,path in pairs(paths) do
         -- Upload file to S3
         s3path = f"${s3path_preamble}/${name}_${fi[1]:name()}"
         link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
-        s3:upload_file(outpath, s3path)
-        size = string.format("%.2f", (fi[1]:size()/1000))
-        hunt.log(f"Uploaded ${name} - ${path} (size=${size}KB, sha1=${hash}) to S3 bucket:")
-        hunt.log(link)
-        files_uploaded = files_uploaded + 1
+        
+        success, err = s3:upload_file(outpath, s3path)
+        if not success then
+            hunt.error("Upload to s3 bucket=${link} failed with err="..tostring(err))
+        else
+            size = string.format("%.2f", (path:size()/1000))
+            hunt.log(f"Uploaded ${name} - ${path} (size=${size}KB, sha1=${hash}) to S3 bucket:")
+            hunt.log(link)
+            files_uploaded = files_uploaded + 1
+        end        
+        
         os.remove(outpath)
         ::continue::
     else

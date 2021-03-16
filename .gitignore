@@ -7,3 +7,4 @@ draft/test.lua
 tests/test.lua
 *.ps1
 official/response/HostSurvey.tar
+.vscode/settings.json
