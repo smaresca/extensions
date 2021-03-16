@@ -541,7 +541,15 @@ if all_office_docs then
             s3path = f"${s3path_preamble}/${hash}${ext}"
             link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
             hunt.log(f"Uploading ${path:path()} (size=${file.size}, sha1=${hash}) to S3 bucket ${link}")
-            s3:upload_file(path:path(), s3path)
+            name = path:name()
+            success, err = s3:upload_file(path:path(), s3path)
+            if not success then
+                hunt.error("Upload to s3 bucket=${link} failed with err="..tostring(err))
+            else
+                hunt.log(f"Uploaded ${name} to S3 bucket:")
+                hunt.log(link)
+            end
+            
         else
             hunt.log(f"Found ${path:path()} (size= ${file.size}, sha1=${hash})")
         end
@@ -559,8 +567,14 @@ if all_office_docs then
         tmp:flush()
         tmp:close()
         s3path = f"${s3path_preamble}/index.csv"
-        s3:upload_file(tmpfile, s3path)
-        hunt.verbose("Index uploaded to S3.")
+        link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
+        success, err = s3:upload_file(tmpfile, s3path)
+        if not success then
+            hunt.error("Upload to s3 bucket=${link} failed with err="..tostring(err))
+        else
+            hunt.log(f"Uploaded Index to S3 bucket:")
+            hunt.log(link)
+        end
         os.remove(tmpfile)
     end
 else
@@ -597,8 +611,14 @@ else
                             ext = GetFileExtension(item['File'])
                             s3path = f"${s3path_preamble}/${item['SHA1']}${ext}"
                             link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
-                            s3:upload_file(item['File'], s3path)
-                            hunt.log(f"Uploaded ${item['File']} (size= ${item['FilesizeKB']}KB, sha1=${item['SHA1']} to S3 bucket: ${link})")
+                            
+                            success, err = s3:upload_file(item['File'], s3path)
+                            if not success then
+                                hunt.error("Upload to s3 bucket=${link} failed with err="..tostring(err))
+                            else
+                                hunt.log(f"Uploaded ${item['File']} (size= ${item['FilesizeKB']}KB, sha1=${item['SHA1']}) to S3 bucket:")
+                                hunt.log(link)
+                            end  
                         else
                             hunt.error(f"Could not upload: ${item['File']} (${item['SHA1']})")
                         end
@@ -613,8 +633,16 @@ else
                 -- Upload Index
                 s3path = f"${s3path_preamble}/index.csv"
                 link = f"https://${s3_bucket}.s3.${s3_region}.amazonaws.com/${s3path}"
-                s3:upload_file(tempfile, s3path)
-                hunt.log(f"Uploaded Index to S3 bucket ${link}")
+                
+                success, err = s3:upload_file(tempfile, s3path)
+                if not success then
+                    hunt.error("Upload to s3 bucket=${link} failed with err="..tostring(err))
+                else
+                    hunt.log(f"Uploaded Index to S3 bucket:")
+                    hunt.log(link)
+                    files_uploaded = files_uploaded + 1
+                end  
+
             end
 
             --Cleanup
