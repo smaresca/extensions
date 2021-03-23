@@ -3,7 +3,7 @@ name: Hafnium Microsoft Exchange Scanner
 filetype: Infocyte Extension
 type: Collection
 description: | 
-    Checks for indicators of compromise related to the March 2021 Exchange Vulns and the Threat Group Hafnium.
+    Checks for indicators of compromise related to the March 2021 Exchange Vulns (ProxyLogon) and the Threat Group Hafnium.
     This will use webshell and china chopper webshell yara signatures to scan the wwwroot folder.
     In addition, it will also grab relevant logs that Microsoft recommends you review using Powershell commands provided by Microsoft.
     Beacons and other memory-only footholds will be found natively with Infocyte's memory scans (you will see memory injects in common Windows processes)
@@ -16,10 +16,10 @@ updated: 2021-03-06
 
 # Global variables
 globals:
-- hafnium_all:
-    description: Attempts to grab winevents which can cause performance issues and timeouts to be hit
+- quick_scan:
+    description: Some scans can cause performance issues and timeouts to be hit - this restricts the scan to certain date ranges
     type: boolean
-    default: false
+    default: true
 
 - wwwrootpath:
     description: wwwroot path
@@ -36,7 +36,7 @@ args:
 -- hunt.arg(name = <string>, isRequired = <boolean>, [default])
 -- hunt.global(name = <string>, isRequired = <boolean>, [default])
 
-hafnium_all = hunt.global.boolean("hafnium_all", false, false)
+quick_scan = hunt.global.boolean("quick_scan", false, true)
 wwwrootpath = hunt.global.boolean("wwwrootpath", false, "C:\\inetpub\\wwwroot")
 
 rules = [=[
@@ -353,30 +353,34 @@ end
 host_info = hunt.env.host_info()
 hunt.log(f"Starting Extention. Hostname: ${host_info:hostname()} [${host_info:domain()}], OS: ${host_info:os()}")
 
+-- Scan
+level = 10 -- threat level (10 is not defined)
+levels = {}
+levels[1] = "BAD"
+levels[2] = "SUSPICIOUS"
+levels[3] = "INFO"
+
 -- Get Exchange Install Path
 hunt.log("Getting Exchange Install Path...")
-out, err = hunt.env.run_powershell([[
-    $p = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v15\Setup -ErrorAction SilentlyContinue).MsiInstallPath
-    if ($null -eq $p) { $p = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v14\Setup -ErrorAction SilentlyContinue).MsiInstallPath}
-    return $p
+exchange_path, err = hunt.env.run_powershell([[
+    return (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v15\Setup -ErrorAction SilentlyContinue).MsiInstallPath
 ]])
-if err ~= "" then 
+if err ~= "" then
+    hunt.error("Error getting Microsoft Exchange Path")
     hunt.error(err)
 end
-exchange_path = out
 if exchange_path == nil or exchange_path == "" then
-    hunt.warn("Microsoft Exchange is not installed on this host or Powershell is disabled. Skipping Exchange Checks.")
+    hunt.warn("Microsoft Exchange 2013+ is not installed on this host (or Powershell is disabled by a 3rd party tool). Skipping Exchange Checks.")
     hunt.status.good()
+    --return
 else
-    hunt.log(f"Exchange Install Path: ${exchange_path}")
+    hunt.log(f"Microsoft Exchange Found. Install Path: ${exchange_path}")
 end
 
 -- Get default Web Site wwwroot folder
 out, err = hunt.env.run_powershell([[
-try {
-    (Get-ItemProperty HKLM:\Software\Microsoft\INetStp -Name "PathWWWRoot" -ea stop).PathWWWRoot 
-}
-catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message }
+try { (Get-ItemProperty HKLM:\Software\Microsoft\INetStp -Name "PathWWWRoot" -ea stop).PathWWWRoot 
+} catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message }
 ]])
 if err ~= "" then 
     hunt.error(err)
@@ -385,23 +389,23 @@ else
     if not string.find(out, "Cannot find path") then
         -- Need to test this more, not working all the time.
         wwwrootpath = out
+    else
+        hunt.error("Could not get wwwrootpath from registry (HKLM:\\Software\\Microsoft\\INetStp\\PathWWWRoot). Using default.")
     end
     hunt.log(f"Default Web Site wwwroot folder: ${wwwrootpath}")
 end
 
 paths = {}
--- Scan
-level = 0 -- threat level (0 is not defined)
-levels = {}
-levels[1] = "BAD"
-levels[2] = "SUSPICIOUS"
-levels[3] = "INFO"
-
 
 hunt.log("Scanning aspx files within wwwroot & exchange frontend folders for webshells")
+if quick_scan then 
+    depth = 2
+else
+    depth = 6
+end
 opts = {
     "files",
-    "recurse=3" -- depth of 1
+    f"recurse=${depth}"
 }
 -- wwwrootpath = "C:\\inetpub\\wwwroot"
 for _, path in pairs(hunt.fs.ls(f"${wwwrootpath}\\aspnet_client", f"${exchange_path}\\Frontend", opts)) do
@@ -449,44 +453,54 @@ for path,i in pairs(matches) do
     n = n + 1
 end
 
+hunt.log("\n")
 hunt.log("CVE-2021-26855: Grabbing relevant Exchange HttpProxy logs via Powershell")
+hunt.log("Note: This search can take a long time. It is currently set to timeout after 5 minutes.")
 hunt.log([=[-- CVE-2021-26855 exploitation can be detected via the following Exchange HttpProxy logs:
 -- These logs are located in the following directory: %PROGRAMFILES%\Microsoft\Exchange Server\V15\Logging\HttpProxy
 -- Exploitation can be identified by searching for log entries where the AuthenticatedUser is empty and the AnchorMailbox contains the pattern of ServerInfo~*/*
 -------------------------------------------------------------------]=])
 out, err = hunt.env.run_powershell([[
     $exchangePath = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v15\Setup -ea 0).MsiInstallPath
-    if ($null -eq $exchangePath) {
-        $exchangePath = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v14\Setup -ea 0).MsiInstallPath
-    }
     if ($null -eq $exchangePath) { $exchangePath = "$env:PROGRAMFILES\Microsoft\Exchange Server\V15"}
     try {
-
-        $allResults = @()
-        $files = (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy" -Filter '*.log' -ea stop).FullName
-        $files | Foreach-Object {
-            if ((Get-ChildItem $_ -ea 0 | Select-String "ServerInfo~").Count -gt 0) {
-                $fileResults = @(Import-Csv -Path $_ -ea 0 | Where-Object AnchorMailbox -Like 'ServerInfo~*/*' | Select-Object -Property DateTime, RequestId, ClientIPAddress, UrlHost, UrlStem, RoutingHint, UserAgent, AnchorMailbox, HttpStatus)
-                $fileResults | ForEach-Object {
-                    $allResults += $_
+        $sw = New-Object System.Diagnostics.Stopwatch
+        $sw.Start()
+        $Hits = [System.Collections.ArrayList]@()
+        $files = [System.Array](Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy" -Filter '*.log' -ea 0 | Select FullName -ExpandProperty FullName)
+        For ( $i = 0; $i -lt $files.Count; ++$i ) {
+            if ($sw.ElapsedMilliseconds -lt 60*5*1000) {
+                if (Test-Path $files[$i] -AND (Select-String -Path $files[$i] -Pattern "ServerInfo~" -Quiet)) {
+                    Import-Csv -Path $files[$i] -ea 0 | Where-Object { 
+                        $_.AnchorMailbox -Like 'ServerInfo~*/*' -and $_.AnchorMailbox -notlike 'ServerInfo~*/autodiscover*' -and $_.AnchorMailbox -notlike 'ServerInfo~localhost*/*' 
+                    } | Select-Object -Property DateTime, RequestId, ClientIPAddress, UrlHost, UrlStem, RoutingHint, UserAgent, AnchorMailbox, HttpStatus | ForEach-Object {
+                        $Hits += $_
+                    }
                 }
             }
         }
-        return $allResults | Out-String
-    } 
-    catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message }
+        if ($Hits.count -gt 0) {
+            $OutString = "CVE-2021-26855 Log Hits: $($Hits.count)`n"
+            $OutString += $Hits | Out-String
+        }
+        return $OutString
+    }
+    catch [System.Management.Automation.ItemNotFoundException] { return "ERROR: $($_.Exception.Message)" }
 ]])
-if err ~= nil and err ~= "" then 
+if (err ~= nil and err ~= "") or out:find("ERROR:") then 
     hunt.error(err)
-end
-if out then
+elseif out then
     if out == nil or out == "" then
-        hunt.log("Nothing suspicious detected.") 
+        hunt.log("RESULT: Nothing suspicious detected.") 
     else
         hunt.log(out)
+        if level > 2 then
+            level = 2
+        end
     end
 end
 
+hunt.log("\n")
 hunt.log("CVE-2021-26858: Grabbing relevant Exchange log files via Powershell")
 hunt.log([=[-- If activity is detected, the logs specific to the application specified in the AnchorMailbox path can be used to help determine what actions were taken.
 -- These logs are located in the %PROGRAMFILES%\Microsoft\Exchange Server\V15\Logging directory.
@@ -498,87 +512,180 @@ hunt.log([=[-- If activity is detected, the logs specific to the application spe
 -------------------------------------------------------------------]=])
 out, err = hunt.env.run_powershell([[
     $exchangePath = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v15\Setup -ea 0).MsiInstallPath
-    if ($null -eq $exchangePath) {
-        $exchangePath = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v14\Setup -ea 0).MsiInstallPath
-    }
     if ($null -eq $exchangePath) { $exchangePath = "$env:PROGRAMFILES\Microsoft\Exchange Server\V15"}
     try {
-        Get-ChildItem -Recurse -Path "$exchangePath\Logging\OABGeneratorLog" -ea stop | 
-            Select-String "Download failed and temporary file" -List | Select-Object -ExpandProperty Path
+        $downloadPaths = [System.Collections.ArrayList]@()
+        $files = [System.Array](Get-ChildItem -Recurse -Path "$exchangePath\Logging\OABGeneratorLog" -ea 0 | Select-String "Download failed and temporary file" -List | Select-Object -ExpandProperty Path)
+        for ( $i = 0; $i -lt $files.Count; $i++) {
+            $loginstance = Select-String -Path $files[$i] -Pattern "Download failed and temporary file"
+            foreach ($logLine in $loginstance) {
+                $path = ([String]$logLine | Select-String -Pattern 'Download failed and temporary file (.*?) needs to be removed').Matches.Groups[1].value
+                if ($null -ne $path -and (-not ($path.StartsWith("'$exchangePath" + "ClientAccess\OAB", "CurrentCultureIgnoreCase")))) {
+                    [Void]$downloadPaths.Add( [String]$path )
+                }
+            }
+        }
+        return $downloadPaths
     } 
-    catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message  }
+    catch [System.Management.Automation.ItemNotFoundException] { return "ERROR: $($_.Exception.Message)"  }
 ]])
-if err ~= nil and err ~= "" then  
+if (err ~= nil and err ~= "") or out:find("ERROR:") then 
     hunt.error(err)
-end
-if out then
+elseif out then
     if out == nil or out == "" then
-        hunt.log("Nothing suspicious detected.") 
+        hunt.log("RESULT: Nothing suspicious detected in OABGeneratorLog.") 
     else
+        for s in out:gmatch("[^\r\n]+") do
+            -- Create a new artifact
+            artifact = hunt.survey.artifact()
+            artifact:exe(s)
+            artifact:type("Hafnium Extension")
+            hunt.survey.add(artifact)
+            n = n + 1
+        end
+        hunt.log("Downloaded files found in suspicious locations. Added the following to Artifacts:")
         hunt.log(out)
+        if level > 2 then
+            level = 2
+        end
     end
 end
 
+hunt.log("\n")
+hunt.log("CVE-2021-26857: Grabbing MSExchange Unified Messaging event logs via Powershell")
+if quick_scan then
+    startdate = [[$startdate = "02/27/21";
+    ]]
+    hunt.warn("QuickScan Set: Setting earliest MSExchange Unified Messaging event log pull to 02/27/21. This command has performance issues and will likely hit timeouts. If you want to go back further, create a global boolean variable called 'quick_scan' and set it to false.")
+else 
+    startdate = [[$startdate = "06/01/2020";
+    ]]
+end
 hunt.log([=[-- CVE-2021-26857 exploitation can be detected via the Windows Application event logs
         -- Exploitation of this deserialization bug will create Application events with the following properties:
         -- Source: MSExchange Unified Messaging
         -- EntryType: Error
         -- Event Message Contains: System.InvalidCastException
         -------------------------------------------------------------------]=])
-if not hafnium_all then
-    hunt.warn("Skipping MSExchange Unified Messaging event log pull. This command has performance issues and will likely hit timeouts. If you want to attempt it, create a global boolean variable called 'hafnium_all' and set it to true.")
-else 
-    hunt.log("CVE-2021-26857: Grabbing MSExchange Unified Messaging event logs via Powershell")
-    out, err = hunt.env.run_powershell([[
-        try { 
-            Get-WinEvent -FilterHashtable @{
-                LogName      = 'Application'
-                ProviderName = 'MSExchange Unified Messaging'
-                Level        = '2'
-            } -ea stop | Where-Object Message -Like "*System.InvalidCastException*"
-        }
-        catch { $_.Exception.Message }
-    ]])
-    if err ~= nil and err ~= "" then  
-        hunt.error(err)
-    end
-    if out then
-        if out == nil or out == "" then
-            hunt.log("Nothing suspicious detected.") 
-        else
-            hunt.log(out)
+out, err = hunt.env.run_powershell(startdate..[[
+try {
+    $events = Get-WinEvent -FilterHashtable @{
+        LogName      = 'Application'
+        ProviderName = 'MSExchange Unified Messaging'
+        Level        = '2'
+        StartTime    = $startdate
+    } -ea stop | Where-Object Message -Like "*System.InvalidCastException*"
+    if ($events.count > 0) {
+        return $events | fl | Out-String
+    } else { return }
+}
+catch { return "ERROR: MSExchange Unified Messaging provider is not present or events not found in the Application Event log" }
+]])
+if (err ~= nil and err ~= "") or out:find("ERROR:") then 
+    hunt.error(err)
+elseif out then
+    if out == nil or out == "" then
+        hunt.log("RESULT: Nothing suspicious detected in MSExchange Unified Messaging event logs.") 
+    else
+        hunt.log(out)
+        if level > 2 then
+            level = 2
         end
     end
 end
 
+hunt.log("\n")
 hunt.log([=[CVE-2021-27065: Grabbing relevant logs (V15\Logging\ECP\Server) via Powershell]=])
 hunt.log([=[-- CVE-2021-27065 exploitation can be detected via the following Exchange log files:
 -- C:\Program Files\Microsoft\Exchange Server\V15\Logging\ECP\Server
--- All Set-<AppName>VirtualDirectory properties should never contain script. InternalUrl and ExternalUrl should only be valid Uris.
+-- All Set-<AppName>VirtualDirectory properties should never contain scripts. InternalUrl and ExternalUrl should only be valid Uris.
 -------------------------------------------------------------------]=])
 out, err = hunt.env.run_powershell([[
+$exchangePath = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v15\Setup -ea 0).MsiInstallPath
+if ($null -eq $exchangePath) { $exchangePath = "$env:PROGRAMFILES\Microsoft\Exchange Server\V15"}
+try {
+    $setVDirMaliciousUrlLogs = Get-ChildItem -Recurse -Path "$exchangePath\Logging\ECP\Server\*.log" -ErrorAction 0 | Select-String "Set-.+VirtualDirectory.+?(?=Url).+<\w+.*>(.*?)<\/\w+>.+?(?=VirtualDirectory)" -List | Select-Object -ExpandProperty Path
+    return $setVDirMaliciousUrlLogs
+} catch [System.Management.Automation.ItemNotFoundException] { return "ERROR: $($_.Exception.Message)" }
+]])
+if (err ~= nil and err ~= "") or out:find("ERROR:") then 
+    hunt.error(err)
+elseif out then
+    if out == nil or out == "" then
+        hunt.log("RESULT: Nothing suspicious detected in ECP\\Server logs.") 
+    else
+        hunt.log("[CVE-2021-27065] ECP logs had suspicious URLs:\n")
+        hunt.log(out)
+        if level > 2 then
+            level = 2
+        end
+    end
+end
+out, err = hunt.env.run_powershell([[
     $exchangePath = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v15\Setup -ea 0).MsiInstallPath
-    if ($null -eq $exchangePath) {
-        $exchangePath = (Get-ItemProperty -Path Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\ExchangeServer\v14\Setup -ea 0).MsiInstallPath
-    }
     if ($null -eq $exchangePath) { $exchangePath = "$env:PROGRAMFILES\Microsoft\Exchange Server\V15"}
     try { 
-        Get-ChildItem -Recurse -Path "$exchangePath\Logging\ECP\Server\*.log" -ea stop | 
-            Select-String "Set-.*VirtualDirectory" -List | 
-            Select-Object -ExpandProperty Path
-    } catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message }
+        $setVDirMaliciousUrlLogs = [System.Collections.ArrayList]@()
+        $files = [System.Array](Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\Ecp" -Filter '*.log' -ea 0 | Select FullName -ExpandProperty FullName)
+        For ( $i = 0; $i -lt $files.Count; ++$i ) {
+            if ((Get-ChildItem $files[$i] -ErrorAction SilentlyContinue | Select-String -Pattern "ServerInfo~").Count -gt 0) {
+                $hits = @(Import-Csv -Path $files[$i] -ErrorAction SilentlyContinue | Where-Object { $_.AnchorMailbox -Like 'ServerInfo~*/*Reset*VirtualDirectory#' -and $_.HttpStatus -eq 200 } |
+                    Select-Object -Property $outProps)
+                if ($hits.Count -gt 0) {
+                    $hits | ForEach-Object {
+                        [Void]$resetVDirHits.Add( $_ )
+                    }
+                }
+            }
+        }
+        return $resetVDirHits
+    } catch [System.Management.Automation.ItemNotFoundException] { return "ERROR: $($_.Exception.Message)" }
 ]])
-if err ~= nil and err ~= "" then  
+if (err ~= nil and err ~= "") or out:find("ERROR:") then 
     hunt.error(err)
-end
-if out then
+elseif out then
     if out == nil or out == "" then
-        hunt.log("Nothing suspicious detected.") 
+        hunt.log("RESULT: Nothing suspicious detected in HttpProxy\\Ecp logs.") 
     else
+        hunt.log("[CVE-2021-27065] Webshell possibly downloaded in file system. Reset-VirtualDirectory entries:\n")
         hunt.log(out)
+        if level > 2 then
+            level = 2
+        end
     end
 end
 
+
+out, err = hunt.env.run_powershell([=[
+function Get-AgeInDays {
+    param ( $dateString )
+    if ( $dateString -and $dateString -as [DateTime] ) {
+        $CURTIME = Get-Date
+        $age = $CURTIME.Subtract($dateString)
+        return $age.TotalDays.ToString("N1")
+    }
+    return ""
+}
+[PSCustomObject]@{
+    Oabgen           = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\OABGeneratorLog" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    Ecp              = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\ECP\Server\*.log" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    AutodProxy       = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\Autodiscover" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    EasProxy         = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\Eas" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    EcpProxy         = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\Ecp" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    EwsProxy         = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\Ews" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    MapiProxy        = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\Mapi" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    OabProxy         = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\Oab" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    OwaProxy         = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\Owa" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    OwaCalendarProxy = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\OwaCalendar" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    PowershellProxy  = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\PowerShell" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+    RpcHttpProxy     = (Get-AgeInDays (Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy\RpcHttp" -ErrorAction SilentlyContinue | Sort-Object CreationTime | Select-Object -First 1).CreationTime)
+} | Out-String
+]=])
+hunt.log("\n")
+hunt.log("Log Ages (Days):")
+hunt.log([=[-- Log Ages (Days):
+-------------------------------------------------------------------]=])
+hunt.log(out)
 
 -- Set threat status
 if level == 1 then
@@ -595,5 +702,9 @@ else
     hunt.status.good()
 end
 
-hunt.log(f"Yara scan completed. Result=${result}. Added ${n} paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
-hunt.log("NOTE: If powershell is disabled, the results for log pulls will be blank.")
+hunt.log("\n")
+hunt.log(f"Scan completed. Result=${result}.")
+if n > 0 then 
+    hunt.log("Added ${n} paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
+end
+hunt.log("NOTE: If powershell is disabled by a third party tool, the results for log pulls will be blank.")
