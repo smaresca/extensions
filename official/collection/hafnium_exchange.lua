@@ -372,7 +372,7 @@ end
 if exchange_path == nil or exchange_path == "" then
     hunt.warn("Microsoft Exchange 2013+ is not installed on this host (or Powershell is disabled by a 3rd party tool). Skipping Exchange Checks.")
     hunt.status.good()
-    --return
+    return
 else
     hunt.log(f"Microsoft Exchange Found. Install Path: ${exchange_path}")
 end
