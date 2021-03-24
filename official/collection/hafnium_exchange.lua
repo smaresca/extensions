@@ -470,7 +470,7 @@ out, err = hunt.env.run_powershell([[
         $files = [System.Array](Get-ChildItem -Recurse -Path "$exchangePath\Logging\HttpProxy" -Filter '*.log' -ea 0 | Select FullName -ExpandProperty FullName)
         For ( $i = 0; $i -lt $files.Count; ++$i ) {
             if ($sw.ElapsedMilliseconds -lt 60*5*1000) {
-                if (Test-Path $files[$i] -AND (Select-String -Path $files[$i] -Pattern "ServerInfo~" -Quiet)) {
+                if ((Test-Path $files[$i]) -AND (Select-String -Path $files[$i] -Pattern "ServerInfo~" -Quiet)) {
                     Import-Csv -Path $files[$i] -ea 0 | Where-Object { 
                         $_.AnchorMailbox -Like 'ServerInfo~*/*' -and $_.AnchorMailbox -notlike 'ServerInfo~*/autodiscover*' -and $_.AnchorMailbox -notlike 'ServerInfo~localhost*/*' 
                     } | Select-Object -Property DateTime, RequestId, ClientIPAddress, UrlHost, UrlStem, RoutingHint, UserAgent, AnchorMailbox, HttpStatus | ForEach-Object {
