@@ -581,8 +581,10 @@ try {
 }
 catch { return "ERROR: MSExchange Unified Messaging provider is not present or events not found in the Application Event log" }
 ]])
-if (err ~= nil and err ~= "") or out:find("ERROR:") then 
+if (err ~= nil and err ~= "") then 
     hunt.error(err)
+elseif out:find("ERROR: MSExchange Unified Messaging provider") then 
+    hunt.error(out)
 elseif out then
     if out == nil or out == "" then
         hunt.log("RESULT: Nothing suspicious detected in MSExchange Unified Messaging event logs.") 
@@ -683,7 +685,6 @@ function Get-AgeInDays {
 ]=])
 hunt.log("\n")
 hunt.log("Log Ages (Days):")
-hunt.log([=[-- Log Ages (Days):
 -------------------------------------------------------------------]=])
 hunt.log(out)
 
