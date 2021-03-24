@@ -9515,7 +9515,7 @@ end
 
 -- Get default Web Site wwwroot folder
 out, err = hunt.env.run_powershell([[
-try { (Get-ItemProperty HKLM:\Software\Microsoft\INetStp -Name "PathWWWRoot" -ea stop).PathWWWRoot 
+try { (Get-ItemProperty HKLM:\Software\Microsoft\INetStp -Name "PathWWWRoot" -ea stop).PathWWWRoot
 } catch [System.Management.Automation.ItemNotFoundException] { $_.Exception.Message }
 ]])
 if err ~= "" then 
@@ -9529,6 +9529,7 @@ else
         hunt.error("Could not get wwwrootpath from registry (HKLM:\\Software\\Microsoft\\INetStp\\PathWWWRoot). Using default.")
     end
     hunt.log(f"Default Web Site wwwroot folder: ${wwwrootpath}")
+	hunt.log("")
 end
 
 paths = {}
@@ -9560,30 +9561,22 @@ else
     hunt.log(f"Could not find .aspx files within '${wwwrootpath}\\aspnet_client\\*' or '${exchange_path}\\Frontend\\*' (recursion three levels deep) -- skipping scanning")
 end
 
+n = 0
 match, matches = yara_scan(paths, rules) 
 if match then
     -- print("Found matches!")
     level = 1
     for _, m in pairs(matches) do
-        hunt.log(f"Matched yara rule [${levels[level]}]${m['signature']} on: ${m['path']} <${m['hash']}>")
+        hunt.log(f"Matched yara rule [${levels[level]}]${m['signature']} on: ${m['path']} <${m['sha1']}>")
+			-- Add bad and suspicious files to Artifacts list for further analysis
+			artifact = hunt.survey.artifact()
+			artifact:exe(path)
+			artifact:type("Hafnium Extension")
+			hunt.survey.add(artifact)
+			n = n + 1
     end
 else
     hunt.log("No matches found with yara rules.")
-end
-
-
--- Add bad and suspicious files to Artifacts list for analysis
-n = 0
-for path,i in pairs(matches) do
-    if test and n > 3 then
-        break
-    end
-    -- Create a new artifact
-    artifact = hunt.survey.artifact()
-    artifact:exe(path)
-    artifact:type("Hafnium Extension")
-    hunt.survey.add(artifact)
-    n = n + 1
 end
 
 hunt.log("\n")
@@ -9839,6 +9832,6 @@ end
 hunt.log("\n")
 hunt.log(f"Scan completed. Result=${result}.")
 if n > 0 then 
-    hunt.log("Added ${n} paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
+    hunt.log(f"Added ${n} paths (all bad and suspicious matches) to Artifacts for processing and retrieval.")
 end
 hunt.log("NOTE: If powershell is disabled by a third party tool, the results for log pulls will be blank.")
