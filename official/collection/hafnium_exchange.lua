@@ -9423,7 +9423,7 @@ function get_filename(path)
 end
 
 function get_fileextension(path)
-    match = path:match("^.+(%..+)$")
+    match = path:match("^.+%.(.+)$")
     return match
 end
 
@@ -9508,7 +9508,7 @@ end
 if exchange_path == nil or exchange_path == "" then
     hunt.warn("Microsoft Exchange 2013+ is not installed on this host (or Powershell is disabled by a 3rd party tool). Skipping Exchange Checks.")
     hunt.status.good()
-    --return
+    return
 else
     hunt.log(f"Microsoft Exchange Found. Install Path: ${exchange_path}")
 end
@@ -9534,7 +9534,7 @@ end
 
 paths = {}
 
-hunt.log("Scanning aspx files within wwwroot & exchange frontend folders for webshells")
+hunt.log("Scanning web files (aspx, php, js, jsp) files within wwwroot & exchange frontend folders for webshells")
 
 depth = 10
 opts = {
@@ -9543,22 +9543,23 @@ opts = {
 }
 -- wwwrootpath = "C:\\inetpub\\wwwroot"
 for _, path in pairs(hunt.fs.ls(f"${wwwrootpath}\\aspnet_client", f"${exchange_path}\\Frontend", opts)) do
-    if get_fileextension(path:name()) == ".aspx" then
+	fileextension = get_fileextension(path:name())
+    if fileextension:match("asp") or fileextension:match("php") or fileextension:match("js") then
         p = path:path()
         fn = get_filename(path:name()) or ""
-        hunt.log(f"Found .aspx file: ${p}")
+        hunt.log(f"Found ${fileextension} file: ${p}")
         if string.len(fn) == 13 then
             level = 2
-            hunt.warn(f"WARNING: aspx file '${fn}' file found with 8 characters (commonly used by HAFNIUM exploits but not by itself malicious)")
+            hunt.warn(f"WARNING: ${fileextension} file '${fn}' file found with 8 characters (commonly used by HAFNIUM exploits but not by itself malicious)")
         end
         table.insert(paths, path:path())
     end
 end
 
 if #paths > 0 then 
-    hunt.log(f"Found ${#paths} .aspx files -- scanning for webshells")
+    hunt.log(f"Found ${#paths} web files -- scanning for webshells")
 else
-    hunt.log(f"Could not find .aspx files within '${wwwrootpath}\\aspnet_client\\*' or '${exchange_path}\\Frontend\\*' (recursion three levels deep) -- skipping scanning")
+    hunt.log(f"Could not find web files within '${wwwrootpath}\\aspnet_client\\*' or '${exchange_path}\\Frontend\\*' (recursion ${depth} levels deep) -- skipping scanning")
 end
 
 n = 0
@@ -9570,7 +9571,7 @@ if match then
         hunt.log(f"Matched yara rule [${levels[level]}]${m['signature']} on: ${m['path']} <${m['sha1']}>")
 			-- Add bad and suspicious files to Artifacts list for further analysis
 			artifact = hunt.survey.artifact()
-			artifact:exe(path)
+			artifact:exe(m['path'])
 			artifact:type("Hafnium Extension")
 			hunt.survey.add(artifact)
 			n = n + 1
@@ -9655,8 +9656,10 @@ out, err = hunt.env.run_powershell([[
     } 
     catch [System.Management.Automation.ItemNotFoundException] { return "ERROR: $($_.Exception.Message)"  }
 ]])
-if (err ~= nil and err ~= "") or out:find("ERROR:") then 
+if (err ~= nil and err ~= "") then 
     hunt.error(err)
+elseif out:find("ERROR: ") then
+	hunt.error(out)
 elseif out then
     if out == nil or out == "" then
         hunt.log("RESULT: Nothing suspicious detected in OABGeneratorLog.") 
@@ -9736,8 +9739,10 @@ try {
     return $setVDirMaliciousUrlLogs
 } catch [System.Management.Automation.ItemNotFoundException] { return "ERROR: $($_.Exception.Message)" }
 ]])
-if (err ~= nil and err ~= "") or out:find("ERROR:") then 
+if (err ~= nil and err ~= "") then 
     hunt.error(err)
+elseif out:find("ERROR:") then
+	hunt.error(out)
 elseif out then
     if out == nil or out == "" then
         hunt.log("RESULT: Nothing suspicious detected in ECP\\Server logs.") 
@@ -9769,8 +9774,10 @@ out, err = hunt.env.run_powershell([[
         return $resetVDirHits
     } catch [System.Management.Automation.ItemNotFoundException] { return "ERROR: $($_.Exception.Message)" }
 ]])
-if (err ~= nil and err ~= "") or out:find("ERROR:") then 
+if (err ~= nil and err ~= "") then 
     hunt.error(err)
+elseif out:find("ERROR:") then
+	hunt.error(out)
 elseif out then
     if out == nil or out == "" then
         hunt.log("RESULT: Nothing suspicious detected in HttpProxy\\Ecp logs.") 
